@@ -5,6 +5,7 @@ import warnings
 import kernels as km
 import pickle as pkl
 
+
 def get_train(k):
     """
     Load training data set specified by k
@@ -145,3 +146,26 @@ def get_training_datas(d=3, method='WD', replace=False):
         pkl.dump([X_train, y_train, X_test, y_test, K_train, K_test], open(os.path.join('./Data', file), 'wb'))
     warnings.simplefilter('always')
     return X_train, y_train, X_test, y_test, K_train, K_test
+
+
+def select_k(k, X_train, y_train, X_test, y_test, K_train, K_test):
+    """
+    Restrict training and testing data to 1 data set of interest, defined by k (TF type)
+    :param k: int, which data set to restrict on
+    :param X_train: pd.DataFrame, training features
+    :param y_train: pd.DataFrame, training labels
+    :param X_test: pd.DataFrame, testing features
+    :param y_test: pd.DataFrame, testing labels
+    :param K_train: np.array, training kernel
+    :param K_test: np.array, testing kernel
+    :return: pd.DataFrames and kernels
+    """
+    idx_train = np.where(X_train.loc[:, 'k'] == k)[0]
+    idx_test = np.where(X_test.loc[:, 'k'] == k)[0]
+    X_train_ = X_train.iloc[idx_train]
+    y_train_ = y_train.iloc[idx_train]
+    y_test_ = y_test.iloc[idx_test]
+    X_test_ = X_test.iloc[idx_test]
+    K_train_ = K_train[idx_train][:, idx_train]
+    K_test_ = K_test[idx_test][:, idx_test]
+    return X_train_, y_train_, X_test_, y_test_, K_train_, K_test_
