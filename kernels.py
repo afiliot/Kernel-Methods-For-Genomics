@@ -1,4 +1,5 @@
 import numpy as np
+from tqdm import tqdm_notebook as tqdm
 
 
 def beta(d, k):
@@ -48,6 +49,6 @@ def get_WD_K(X, d):
         K[i, i] = L - 1 + (1-d)/3
         for j, y in enumerate(X.loc[:, 'seq']):
             if j > i:
-                K[i, j] = get_k(x, y, d, L)
+                K[i, j] = get_WD_k(x, y, d, L)
                 K[j, i] = K[i, j]
     return K, 'WD'
