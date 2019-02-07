@@ -119,30 +119,29 @@ def train_test_split():
     return X_train, y_train, X_test, y_test
 
 
-def get_training_datas(d=3, method='WD', replace=False):
-    '''
+def get_training_datas(method, param, replace=False):
+    """
     Construct training and testing data, and kernels.
-    param:
-        - d: int, maximal degree
-        - method: string, method used for computing kernels
-        - replace: Boolean, whether or not replace the existing files in the repo
-    return:
+    :param: d: int, maximal degree for Weighted Degree Kernel
+    :param: method: string, method used for computing kernels
+    :param: replace: Boolean, whether or not replace the existing files in the repo
+    :return:
         - X_train: pd.DataFrame, training features
         - X_test: pd.DataFrame, testing features
         - y_train: pd.DataFrame, training labels
         - y_test: pd.DataFrame, testing labels
         - K_train: np.array, training kernel
         - K_test: np.array, testing kernel
-    '''
+    """
     warnings.filterwarnings('ignore')
-    file = 'training_data_'+str(d)+'_'+method+'.pkl'
+    file = 'training_data_'+method+'.pkl'
     if trainInRepo(file) and not replace:
         X_train, y_train, X_test, y_test, K_train, K_test = pkl.load(open(os.path.join('./Data', file), 'rb'))
     else:
         X_train, y_train, X_test, y_test = train_test_split()
-        K_train, method = km.get_WD_K(X_train, d)
-        K_test, _ = km.get_WD_K(X_test, d)
-        file = 'training_data_'+str(d)+'_'+method+'.pkl'
+        K_train, method = km.select_method(X_train, method, param)
+        K_test, _ = km.select_method(X_test, method, param)
+        file = 'training_data_'+method+'.pkl'
         pkl.dump([X_train, y_train, X_test, y_test, K_train, K_test], open(os.path.join('./Data', file), 'wb'))
     warnings.simplefilter('always')
     return X_train, y_train, X_test, y_test, K_train, K_test
