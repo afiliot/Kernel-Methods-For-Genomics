@@ -117,7 +117,7 @@ def train_test_split():
     return X_train, y_train, X_test, y_test
 
 
-def get_training_datas(method, param, replace=False):
+def get_training_datas(method, param, all=True, replace=False):
     """
     Construct training and testing data, and kernels.
     :param: d: int, maximal degree for Weighted Degree Kernel
@@ -133,25 +133,32 @@ def get_training_datas(method, param, replace=False):
     """
     warnings.filterwarnings('ignore')
     file = 'training_data_'+method+'.pkl'
-    if trainInRepo(file) and not replace:
-        X_train, y_train, X_test, y_test, K = pkl.load(open(os.path.join('./Data', file), 'rb'))
-    else:
+    if not all:
         X_train, y_train, X_test, y_test = train_test_split()
         X_train, X_test = X_train.sample(frac=1), X_test.sample(frac=1)
         idx_train, idx_test = X_train.index, X_test.index
         y_train, y_test = y_train.iloc[idx_train, :], y_test.iloc[idx_test, :]
-        X = resetIndex([pd.concat((X_train, X_test))])[0]
-        K = km.select_method(X, method, param)
-        file = 'training_data_'+method+'.pkl'
-        pkl.dump([X_train, y_train, X_test, y_test, K], open(os.path.join('./Data', file), 'wb'))
-    warnings.simplefilter('always')
-    X_train, X_test, y_train, y_test = resetIndex([X_train, X_test, y_train, y_test])
-    X_test.index = X_train.shape[0] + np.arange(X_test.shape[0])
-    y_test.index = y_train.shape[0] + np.arange(y_test.shape[0])
-    return X_train, y_train, X_test, y_test, K
+        X = pd.concat((X_train, X_test), axis=0)
+        ID = X.loc[:, 'Id']
+        return X_train, y_train, X_test, y_test, ID
+    else:
+        if trainInRepo(file) and not replace:
+            X_train, y_train, X_test, y_test, K, ID = pkl.load(open(os.path.join('./Data', file), 'rb'))
+        else:
+            X_train, y_train, X_test, y_test = train_test_split()
+            X_train, X_test = X_train.sample(frac=1), X_test.sample(frac=1)
+            idx_train, idx_test = X_train.index, X_test.index
+            y_train, y_test = y_train.iloc[idx_train, :], y_test.iloc[idx_test, :]
+            X = pd.concat((X_train, X_test), axis=0)
+            ID = X.loc[:, 'Id']
+            K = km.select_method(X, method, param)
+            file = 'training_data_'+method+'.pkl'
+            pkl.dump([X_train, y_train, X_test, y_test, K, ID], open(os.path.join('./Data', file), 'wb'))
+        warnings.simplefilter('always')
+        return X_train, y_train, X_test, y_test, K, ID
 
 
-def select_k(k, X_train, y_train, X_test, y_test, K):
+def select_k(k, X_train, y_train, X_test, y_test, K, ID):
     """
     Restrict training and testing data to 1 data set of interest, defined by k (TF type)
     :param k: int, which data set to restrict on
@@ -164,7 +171,10 @@ def select_k(k, X_train, y_train, X_test, y_test, K):
     """
     idx_train = np.where(X_train.loc[:, 'k'] == k)[0]
     idx_test = np.where(X_test.loc[:, 'k'] == k)[0]
-    idx = np.concatenate((idx_train, idx_test))
+    id_train = X_train.iloc[idx_train, 1]
+    id_test = X_test.iloc[idx_test, 1]
+    id_k = np.concatenate((id_train, id_test))
+    idx = np.where(np.in1d(ID, id_k))
     X_train_ = X_train.iloc[idx_train]
     y_train_ = y_train.iloc[idx_train]
     y_test_ = y_test.iloc[idx_test]
