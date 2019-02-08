@@ -51,20 +51,13 @@ def get_WD_K(X, d):
             if j > i:
                 K[i, j] = get_WD_k(x, y, d, L)
                 K[j, i] = K[i, j]
-    return K, 'WD'+str(d)
-
-
-# Just in case
-# alg = model.__getattribute__(m)
-# args = inspect.getfullargspec(alg)[0][2:]
-# args = [T]+[param_dic[m][i] for i in args]
-# all_regrets[i, j, :] = model.regret(alg(*args)[0], T)
+    return K
 
 
 def select_method(X, method, param):
     p = param[method]
     if method[:2] == 'WD':
-        K, s = get_WD_K(X, p)
-    return K, s
+        K = get_WD_K(X, p)
+    return K
 
 
