@@ -47,7 +47,7 @@ class C_SVM():
         self.K_fit = self.K[self.idx_fit][:, self.idx_fit]
         self.y_fit = np.array(y.loc[:, 'Bound'])
         n = self.K_fit.shape[0]
-        a0 = np.random.rand(n)
+        a0 = np.zeros(n)
         constraints = []
         for i in range(n):
             constraints.append({'type': 'ineq',
