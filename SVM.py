@@ -32,12 +32,15 @@ class C_SVM():
         :param Xi: np.array, values returned by scipy.minimize at each iteration
         :return: None, update print
         """
+        self.idx_sv = np.where(Xi > self.eps)
+        self.sv = Xi[self.idx_sv]
+        score = self.score(self.predict(self.X_fit), self.y_fit)
         if self.Nfeval == 1:
             self.L = self.loss(Xi)
             print('Iteration {0:2.0f} : S(y)={1:}'.format(self.Nfeval, self.L))
         else:
             l_next = self.loss(Xi)
-            print('Iteration {0:2.0f} : S(y)={1:}, tol={2:}'.format(self.Nfeval, l_next, abs(self.L - l_next)))
+            print('Iteration {0:2.0f} : S(y)={1:}, tol={2:}, acc={3:0.4f}'.format(self.Nfeval, l_next, abs(self.L - l_next), score))
             self.L = l_next
         self.Nfeval += 1
 
@@ -46,6 +49,7 @@ class C_SVM():
         self.idx_fit = np.where(np.in1d(self.ID, self.Id_fit))[0]
         self.K_fit = self.K[self.idx_fit][:, self.idx_fit]
         self.y_fit = np.array(y.loc[:, 'Bound'])
+        self.X_fit = X
         n = self.K_fit.shape[0]
         a0 = np.zeros(n)
         constraints = []
