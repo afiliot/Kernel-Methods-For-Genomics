@@ -150,7 +150,7 @@ def get_training_datas(method, param, all=True, replace=False):
             idx_train, idx_test = X_train.index, X_test.index
             y_train, y_test = y_train.iloc[idx_train, :], y_test.iloc[idx_test, :]
             X = pd.concat((X_train, X_test), axis=0)
-            ID = X.loc[:, 'Id']
+            ID = np.array(X.loc[:, 'Id'])
             K = km.select_method(X, method, param)
             file = 'training_data_'+method+'.pkl'
             pkl.dump([X_train, y_train, X_test, y_test, K, ID], open(os.path.join('./Data', file), 'wb'))
