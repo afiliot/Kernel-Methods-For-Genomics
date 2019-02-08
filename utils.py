@@ -30,6 +30,7 @@ def get_test(k):
         - X: pd.DataFrame, features
     """
     X = pd.read_csv('./Data/Xte' + str(k) + '.csv')
+    X.insert(1, 'k', k+1)
     return X
 
 
@@ -41,9 +42,9 @@ def train_test_split_k(X, y, p):
     :param y: pd.DataFrame, labels (0/1)
     :return:
         - X_train: pd.DataFrame, training features
-        - X_test: pd.DataFrame, testing features
+        - X_val: pd.DataFrame, testing features
         - y_train: pd.DataFrame, training labels
-        - y_test: pd.DataFrame, testing labels
+        - y_val: pd.DataFrame, testing labels
     """
     n = X.shape[0]
     idx_0, idx_1 = np.where(y.loc[:, "Bound"] == -1)[0], np.where(y.loc[:, "Bound"] == 1)[0]
@@ -56,16 +57,16 @@ def train_test_split_k(X, y, p):
     idx_te = np.random.permutation(np.concatenate((idx_te0, idx_te1)))
     n_tr, n_te = len(idx_tr), len(idx_te)
     X_train, y_train = X.iloc[idx_tr, :], y.iloc[idx_tr, :]
-    X_test, y_test = X.iloc[idx_te, :], y.iloc[idx_te, :]
+    X_val, y_val = X.iloc[idx_te, :], y.iloc[idx_te, :]
     print('Number of training samples: {} ({:0.2f}%), testing samples: {} ({:0.2f}%)'.
           format(n_tr, n_tr / n * 100, n_te, n_te / n * 100))
     print('Count train : -1 ({:0.4f}%), 1 ({:0.4f}%)'.
           format(np.count_nonzero(y_train.loc[:, "Bound"] == -1) / n_tr * 100,
                  np.count_nonzero(y_train.loc[:, "Bound"] == 1) / n_tr * 100))
-    print('Count test : -1 ({:0.4f}%), 1 ({:0.4f}%)\n'.
-          format(np.count_nonzero(y_test.loc[:, "Bound"] == -1) / n_te * 100,
-                 np.count_nonzero(y_test.loc[:, "Bound"] == 1) / n_te * 100))
-    return X_train, y_train, X_test, y_test
+    print('Count val : -1 ({:0.4f}%), 1 ({:0.4f}%)\n'.
+          format(np.count_nonzero(y_val.loc[:, "Bound"] == -1) / n_te * 100,
+                 np.count_nonzero(y_val.loc[:, "Bound"] == 1) / n_te * 100))
+    return X_train, y_train, X_val, y_val
 
 
 def trainInRepo(file):
@@ -93,28 +94,30 @@ def resetIndex(df):
 def train_test_split():
     """
     Split training data into training (p%) and testing set (1-p %), with usually p=0.75
-    for each of the 3 types of TF and concatenate trains and tests.
+    for each of the 3 types of TF and concatenate trains and vals.
     Training and testing data sets are balanced w.r.t to the target y.
     :return:
         - X_train: pd.DataFrame, training features
-        - X_test: pd.DataFrame, testing features
+        - X_val: pd.DataFrame, testing features
         - y_train: pd.DataFrame, training labels
-        - y_test: pd.DataFrame, testing labels
+        - y_val: pd.DataFrame, testing labels
     """
     for k in range(3):
         print('k = ' + str(k))
         X, y = get_train(k)
         if k == 0:
-            X_train, y_train, X_test, y_test = train_test_split_k(X, y, 0.75)
+            X_train, y_train, X_val, y_val = train_test_split_k(X, y, 0.75)
+            X_test = get_test(k)
         else:
-            X_tr, y_tr, X_te, y_te = train_test_split_k(X, y, 0.75)
+            X_tr, y_tr, X_v, y_te = train_test_split_k(X, y, 0.75)
             X_train = pd.concat((X_train, X_tr), axis=0)
-            X_test = pd.concat((X_test, X_te), axis=0)
+            X_val = pd.concat((X_val, X_v), axis=0)
             y_train = pd.concat((y_train, y_tr), axis=0)
-            y_test = pd.concat((y_test, y_te), axis=0)
-        X_train, X_test, y_train, y_test = resetIndex([X_train, X_test, y_train, y_test])
-    print('Final shape: train {}, test {}'.format(X_train.shape, X_test.shape))
-    return X_train, y_train, X_test, y_test
+            y_val = pd.concat((y_val, y_te), axis=0)
+            X_test = pd.concat((X_test, get_test(k)), axis=0)
+        X_train, X_val, y_train, y_val, X_test = resetIndex([X_train, X_val, y_train, y_val, X_test])
+    print('Final shape: train {}, val {}, test {}'.format(X_train.shape, X_val.shape, X_test.shape))
+    return X_train, y_train, X_val, y_val, X_test
 
 
 def get_training_datas(method, param, all=True, replace=False):
@@ -125,59 +128,64 @@ def get_training_datas(method, param, all=True, replace=False):
     :param: replace: Boolean, whether or not replace the existing files in the repo
     :return:
         - X_train: pd.DataFrame, training features
-        - X_test: pd.DataFrame, testing features
+        - X_val: pd.DataFrame, testing features
         - y_train: pd.DataFrame, training labels
-        - y_test: pd.DataFrame, testing labels
+        - y_val: pd.DataFrame, testing labels
         - K_train: np.array, training kernel
-        - K_test: np.array, testing kernel
+        - K_val: np.array, testing kernel
     """
     warnings.filterwarnings('ignore')
     file = 'training_data_'+method+'.pkl'
     if not all:
-        X_train, y_train, X_test, y_test = train_test_split()
-        X_train, X_test = X_train.sample(frac=1), X_test.sample(frac=1)
-        idx_train, idx_test = X_train.index, X_test.index
-        y_train, y_test = y_train.iloc[idx_train, :], y_test.iloc[idx_test, :]
-        X = pd.concat((X_train, X_test), axis=0)
+        X_train, y_train, X_val, y_val, X_test = train_test_split()
+        X_train, X_val = X_train.sample(frac=1), X_val.sample(frac=1)
+        idx_train, idx_val = X_train.index, X_val.index
+        y_train, y_val = y_train.iloc[idx_train, :], y_val.iloc[idx_val, :]
+        X_test.loc[:, 'Id'] = -(X_test.loc[:, 'Id'] + 1)
+        X = pd.concat((X_train, X_val, X_test), axis=0)
         ID = X.loc[:, 'Id']
-        return X_train, y_train, X_test, y_test, ID
+        return X_train, y_train, X_val, y_val, X_test, ID
     else:
         if trainInRepo(file) and not replace:
-            X_train, y_train, X_test, y_test, K, ID = pkl.load(open(os.path.join('./Data', file), 'rb'))
+            X_train, y_train, X_val, y_val, X_test, K, ID = pkl.load(open(os.path.join('./Data', file), 'rb'))
         else:
-            X_train, y_train, X_test, y_test = train_test_split()
-            X_train, X_test = X_train.sample(frac=1), X_test.sample(frac=1)
-            idx_train, idx_test = X_train.index, X_test.index
-            y_train, y_test = y_train.iloc[idx_train, :], y_test.iloc[idx_test, :]
-            X = pd.concat((X_train, X_test), axis=0)
+            X_train, y_train, X_val, y_val, X_test = train_test_split()
+            X_train, X_val = X_train.sample(frac=1), X_val.sample(frac=1)
+            idx_train, idx_val = X_train.index, X_val.index
+            y_train, y_val = y_train.iloc[idx_train, :], y_val.iloc[idx_val, :]
+            X_test.loc[:, 'Id'] = -(X_test.loc[:, 'Id']+1)
+            X = pd.concat((X_train, X_val, X_test), axis=0)
             ID = np.array(X.loc[:, 'Id'])
             K = km.select_method(X, method, param)
             file = 'training_data_'+method+'.pkl'
-            pkl.dump([X_train, y_train, X_test, y_test, K, ID], open(os.path.join('./Data', file), 'wb'))
+            pkl.dump([X_train, y_train, X_val, y_val, X_test, K, ID], open(os.path.join('./Data', file), 'wb'))
         warnings.simplefilter('always')
-        return X_train, y_train, X_test, y_test, K, ID
+        return X_train, y_train, X_val, y_val, X_test, K, ID
 
 
-def select_k(k, X_train, y_train, X_test, y_test, K, ID):
+def select_k(k, X_train, y_train, X_val, y_val, X_test, K, ID):
     """
     Restrict training and testing data to 1 data set of interest, defined by k (TF type)
     :param k: int, which data set to restrict on
     :param X_train: pd.DataFrame, training features
     :param y_train: pd.DataFrame, training labels
-    :param X_test: pd.DataFrame, testing features
-    :param y_test: pd.DataFrame, testing labels
+    :param X_val: pd.DataFrame, testing features
+    :param y_val: pd.DataFrame, testing labels
     :param K_train: np.array, training kernel
     :return: pd.DataFrames and kernels
     """
     idx_train = np.where(np.array(X_train.loc[:, 'k']) == k)[0]
+    idx_val = np.where(np.array(X_val.loc[:, 'k']) == k)[0]
     idx_test = np.where(np.array(X_test.loc[:, 'k']) == k)[0]
     id_train = X_train.iloc[idx_train, 0]
+    id_val = X_val.iloc[idx_val, 0]
     id_test = X_test.iloc[idx_test, 0]
-    id_k = np.concatenate((id_train, id_test))
-    idx = np.where(np.in1d(ID, id_k))
+    id_k = np.concatenate((id_train, id_val, id_test))
+    idx = np.where(np.in1d(ID, id_k))[0]
     X_train_ = X_train.iloc[idx_train]
     y_train_ = y_train.iloc[idx_train]
-    y_test_ = y_test.iloc[idx_test]
+    y_val_ = y_val.iloc[idx_val]
+    X_val_ = X_val.iloc[idx_val]
     X_test_ = X_test.iloc[idx_test]
     K_ = K[idx][:, idx]
-    return X_train_, y_train_, X_test_, y_test_, K_, id_k
+    return X_train_, y_train_, X_val_, y_val_, X_test_, K_, id_k

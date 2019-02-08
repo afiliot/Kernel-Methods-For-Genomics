@@ -3,7 +3,6 @@ import numpy as np
 from tqdm import tqdm_notebook as tqdm
 import os
 import pickle as pkl
-import utils
 from scipy.optimize import minimize
 
 
@@ -98,26 +97,26 @@ class C_SVM():
         for k in tqdm(range(kfolds)):
             print('Fold {}'.format(k))
             q = p * (k + 1) + n % kfolds if k == kfolds - 1 else p * (k + 1)
-            idx_test = np.arange(p * k, q)
-            idx_train = np.setdiff1d(np.arange(n), idx_test)
+            idx_val = np.arange(p * k, q)
+            idx_train = np.setdiff1d(np.arange(n), idx_val)
             X_train = X_train_.iloc[idx_train, :]
             y_train = y_train_.iloc[idx_train, :]
-            X_test = X_train_.iloc[idx_test, :]
-            y_test = y_train_.iloc[idx_test, :]
+            X_val = X_train_.iloc[idx_val, :]
+            y_val = y_train_.iloc[idx_val, :]
             s_tr, s_te = [], []
             for C in Cs:
                 svm = C_SVM(self.K, self.ID, C=C, print_callbacks=False); svm.fit(X_train, y_train)
                 pred_tr = svm.predict(X_train)
                 score_tr = svm.score(pred_tr, y_train)
-                pred_te = svm.predict(X_test)
-                score_te = svm.score(pred_te, y_test)
+                pred_te = svm.predict(X_val)
+                score_te = svm.score(pred_te, y_val)
                 s_tr.append(score_tr)
                 s_te.append(score_te)
-                print('C={}, accuracy on train ({:0.4f}) and test ({:0.4f})'.format(C, score_tr, score_te))
+                print('C={}, accuracy on train ({:0.4f}) and val ({:0.4f})'.format(C, score_tr, score_te))
             scores_tr[k], scores_te[k] = s_tr, s_te
         mean_scores_tr, mean_scores_te = np.mean(scores_tr, axis=0), np.mean(scores_te, axis=0)
         C_opt = Cs[np.argmax(mean_scores_te)]
-        print('Best constant C: {}, accuracy on test {:0.4f}'.format(C_opt, np.max(mean_scores_te)))
+        print('Best constant C: {}, accuracy on val {:0.4f}'.format(C_opt, np.max(mean_scores_te)))
         pkl.dump([scores_tr, scores_te, mean_scores_tr, mean_scores_te, C_opt],
                  open(os.path.join('./Data', pickleName), 'wb'))
         return C_opt, scores_tr, scores_te, mean_scores_tr, mean_scores_te
