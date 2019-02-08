@@ -169,10 +169,10 @@ def select_k(k, X_train, y_train, X_test, y_test, K, ID):
     :param K_train: np.array, training kernel
     :return: pd.DataFrames and kernels
     """
-    idx_train = np.where(np.array(X_train.loc[:, 'k']) == k)
-    idx_test = np.where(np.array(X_test.loc[:, 'k']) == k)
-    id_train = X_train.iloc[idx_train, 1]
-    id_test = X_test.iloc[idx_test, 1]
+    idx_train = np.where(np.array(X_train.loc[:, 'k']) == k)[0]
+    idx_test = np.where(np.array(X_test.loc[:, 'k']) == k)[0]
+    id_train = X_train.iloc[idx_train, 0]
+    id_test = X_test.iloc[idx_test, 0]
     id_k = np.concatenate((id_train, id_test))
     idx = np.where(np.in1d(ID, id_k))
     X_train_ = X_train.iloc[idx_train]
