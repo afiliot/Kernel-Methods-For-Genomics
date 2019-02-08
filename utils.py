@@ -139,7 +139,7 @@ def get_training_datas(method, param, replace=False):
         X_train, y_train, X_test, y_test, K_train, K_test = pkl.load(open(os.path.join('./Data', file), 'rb'))
     else:
         X_train, y_train, X_test, y_test = train_test_split()
-        print(y.shape)
+        print(y_train.shape)
         K_train, method = km.select_method(X_train, method, param)
         K_test, _ = km.select_method(X_test, method, param)
         file = 'training_data_'+method+'.pkl'
