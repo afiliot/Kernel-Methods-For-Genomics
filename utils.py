@@ -134,23 +134,24 @@ def get_training_datas(method, param, replace=False):
     warnings.filterwarnings('ignore')
     file = 'training_data_'+method+'.pkl'
     if trainInRepo(file) and not replace:
-        X_train, y_train, X_test, y_test, K_train, K_test = pkl.load(open(os.path.join('./Data', file), 'rb'))
+        X_train, y_train, X_test, y_test, K = pkl.load(open(os.path.join('./Data', file), 'rb'))
     else:
         X_train, y_train, X_test, y_test = train_test_split()
-        print(y_train.shape)
         X_train, X_test = X_train.sample(frac=1), X_test.sample(frac=1)
         idx_train, idx_test = X_train.index, X_test.index
         y_train, y_test = y_train.iloc[idx_train, :], y_test.iloc[idx_test, :]
-        K_train, method = km.select_method(X_train, method, param)
-        K_test, _ = km.select_method(X_test, method, param)
+        X = resetIndex([pd.concat((X_train, X_test))])[0]
+        K = km.select_method(X, method, param)
         file = 'training_data_'+method+'.pkl'
-        pkl.dump([X_train, y_train, X_test, y_test, K_train, K_test], open(os.path.join('./Data', file), 'wb'))
+        pkl.dump([X_train, y_train, X_test, y_test, K], open(os.path.join('./Data', file), 'wb'))
     warnings.simplefilter('always')
     X_train, X_test, y_train, y_test = resetIndex([X_train, X_test, y_train, y_test])
-    return X_train, y_train, X_test, y_test, K_train, K_test
+    X_test.index = X_train.shape[0] + np.arange(X_test.shape[0])
+    y_test.index = y_train.shape[0] + np.arange(y_test.shape[0])
+    return X_train, y_train, X_test, y_test, K
 
 
-def select_k(k, X_train, y_train, X_test, y_test, K_train, K_test):
+def select_k(k, X_train, y_train, X_test, y_test, K):
     """
     Restrict training and testing data to 1 data set of interest, defined by k (TF type)
     :param k: int, which data set to restrict on
@@ -159,15 +160,14 @@ def select_k(k, X_train, y_train, X_test, y_test, K_train, K_test):
     :param X_test: pd.DataFrame, testing features
     :param y_test: pd.DataFrame, testing labels
     :param K_train: np.array, training kernel
-    :param K_test: np.array, testing kernel
     :return: pd.DataFrames and kernels
     """
     idx_train = np.where(X_train.loc[:, 'k'] == k)[0]
     idx_test = np.where(X_test.loc[:, 'k'] == k)[0]
+    idx = np.concatenate((idx_train, idx_test))
     X_train_ = X_train.iloc[idx_train]
     y_train_ = y_train.iloc[idx_train]
     y_test_ = y_test.iloc[idx_test]
     X_test_ = X_test.iloc[idx_test]
-    K_train_ = K_train[idx_train][:, idx_train]
-    K_test_ = K_test[idx_test][:, idx_test]
-    return X_train_, y_train_, X_test_, y_test_, K_train_, K_test_
+    K_ = K[idx][:, idx]
+    return X_train_, y_train_, X_test_, y_test_, K_
