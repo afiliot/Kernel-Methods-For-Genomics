@@ -87,10 +87,10 @@ class C_SVM():
         assert 0 not in np.unique(label), "Labels must be -1 or 1, not 0 or 1"
         return np.mean(pred != label)
 
-    def cv(self, Cs, kfolds=5, pickleName='cv_C_SVM'):
+    def cv(self, Cs, data, kfolds=5, pickleName='cv_C_SVM'):
         scores_tr = np.zeros((kfolds, len(Cs)))
         scores_te = np.zeros((kfolds, len(Cs)))
-        X_tr, y_tr, X_te, y_te, ID = utils.get_training_datas(method='', param='', all=False, replace=None)
+        X_tr, y_tr, X_te, y_te = data
         X_train_ = pd.concat((X_tr, X_te)).reset_index(drop=True)
         y_train_ = pd.concat((y_tr, y_te)).reset_index(drop=True)
         n = X_train_.shape[0]
