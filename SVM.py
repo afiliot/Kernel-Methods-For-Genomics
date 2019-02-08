@@ -86,7 +86,10 @@ class C_SVM():
         return np.array(pred)
 
     def score(self, pred, y):
-        label = np.array(y.loc[:, 'Bound'])
+        if not isinstance(y, np.ndarray):
+            label = np.array(y.loc[:, 'Bound'])
+        else:
+            label = y
         assert 0 not in np.unique(label), "Labels must be -1 or 1, not 0 or 1"
         return np.mean(pred != label)
 
