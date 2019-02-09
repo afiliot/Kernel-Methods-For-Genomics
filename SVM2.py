@@ -88,7 +88,7 @@ class SVM2():
         else:
             label = y
         assert 0 not in np.unique(label), "Labels must be -1 or 1, not 0 or 1"
-        return np.mean(pred != label)
+        return np.mean(pred == label)
 
     def cv(self, Ls, data, kfolds=5, pickleName='cv_2SVM'):
         scores_tr = np.zeros((kfolds, len(Ls)))

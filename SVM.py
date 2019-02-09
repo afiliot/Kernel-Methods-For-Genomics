@@ -91,7 +91,7 @@ class C_SVM():
         else:
             label = y
         assert 0 not in np.unique(label), "Labels must be -1 or 1, not 0 or 1"
-        return np.mean(pred != label)
+        return np.mean(pred == label)
 
     def cv(self, Cs, data, kfolds=5, pickleName='cv_C_SVM'):
         scores_tr = np.zeros((kfolds, len(Cs)))
