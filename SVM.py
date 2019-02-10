@@ -81,7 +81,6 @@ class C_SVM():
         self.idx_tot = np.unique(np.concatenate((self.idx_fit, self.idx_pred)))
         pred = []
         for i in self.idx_pred:
-
             pred.append(np.sign(np.dot(self.sv, self.K[self.idx_sv, i].squeeze())))
         return np.array(pred)
 
@@ -111,7 +110,7 @@ class C_SVM():
             X_val = X_train_.iloc[idx_val, :]
             y_val = y_train_.iloc[idx_val, :]
             s_tr, s_te = [], []
-            for C in Cs:
+            for C in tqdm(Cs):
                 svm = C_SVM(self.K, self.ID, C=C, print_callbacks=False); svm.fit(X_train, y_train)
                 pred_tr = svm.predict(X_train)
                 score_tr = svm.score(pred_tr, y_train)
