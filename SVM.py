@@ -36,22 +36,29 @@ class C_SVM():
         self.idx_sv = np.where(np.abs(Xi) > self.eps)
         self.sv = Xi[self.idx_sv]
         self.idx_sv = self.idx_fit[self.idx_sv]
-        score = self.score(self.predict(self.X_fit), self.y_fit)
+        train_acc = self.score(self.predict(self.X_fit), self.y_fit)
+        if self.X_pred is None:
+            val_acc = 0
+        else:
+            val_acc = self.score(self.predict(self.X_pred), self.y_pred)
         if self.Nfeval == 1:
             self.L = self.loss(Xi)
-            print('Iteration {0:2.0f} : loss={1:}'.format(self.Nfeval, self.L))
+            print('Iteration {0:2.0f} : loss={1:8.4f}'.format(self.Nfeval, self.L))
         else:
             l_next = self.loss(Xi)
-            print('Iteration {0:2.0f} : loss={1:8.4f}, tol={2:8.4f}, acc={3:0.4f}'.format(self.Nfeval, l_next, abs(self.L - l_next), score))
+            print('Iteration {0:2.0f} : loss={1:8.4f}, tol={2:8.4f}, train_acc={3:0.4f}, val_acc={3:0.4f}'
+                  .format(self.Nfeval, l_next, abs(self.L - l_next), train_acc, val_acc))
             self.L = l_next
         self.Nfeval += 1
 
-    def fit(self, X, y):
+    def fit(self, X, y, X_pred=None, y_pred=None):
         self.Id_fit = np.array(X.loc[:, 'Id'])
         self.idx_fit = np.where(np.in1d(self.ID, self.Id_fit))[0]
         self.K_fit = self.K[self.idx_fit][:, self.idx_fit]
         self.y_fit = np.array(y.loc[:, 'Bound'])
         self.X_fit = X
+        self.X_pred = X_pred
+        self.y_pred = y_pred
         n = self.K_fit.shape[0]
         a0 = np.zeros(n)
         if self.method == 'trust':
@@ -111,7 +118,7 @@ class C_SVM():
             y_val = y_train_.iloc[idx_val, :]
             s_tr, s_te = [], []
             for C in tqdm(Cs):
-                svm = C_SVM(self.K, self.ID, C=C, print_callbacks=False); svm.fit(X_train, y_train)
+                svm = C_SVM(self.K, self.ID, C=C, print_callbacks=False); svm.fit(X_train, y_train, X_val, y_val)
                 pred_tr = svm.predict(X_train)
                 score_tr = svm.score(pred_tr, y_train)
                 pred_te = svm.predict(X_val)
