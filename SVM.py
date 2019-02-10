@@ -3,11 +3,12 @@ import numpy as np
 from tqdm import tqdm_notebook as tqdm
 import os
 import pickle as pkl
-from scipy.optimize import minimize
+from scipy.optimize import minimize, LinearConstraint
+import warnings
 
 
 class C_SVM():
-    def __init__(self, K, ID, C=10, maxiter=1000, tol=1e-4, eps=1e-4, method='SLSQP', print_callbacks=True):
+    def __init__(self, K, ID, C=10, maxiter=1000, eps=1e-5, tol=1e-4, method='trust', print_callbacks=True):
         self.K = K
         self.ID = ID
         self.C = C
@@ -27,20 +28,21 @@ class C_SVM():
     def hess(self, a):
         return -(-2 * self.K_fit)
 
-    def callbackF(self, Xi):
+    def callbackF(self, Xi, Yi=0):
         """
         :param Xi: np.array, values returned by scipy.minimize at each iteration
         :return: None, update print
         """
-        self.idx_sv = np.where(Xi > self.eps)
+        self.idx_sv = np.where(np.abs(Xi) > self.eps)
         self.sv = Xi[self.idx_sv]
+        self.idx_sv = self.idx_fit[self.idx_sv]
         score = self.score(self.predict(self.X_fit), self.y_fit)
         if self.Nfeval == 1:
             self.L = self.loss(Xi)
-            print('Iteration {0:2.0f} : S(y)={1:}'.format(self.Nfeval, self.L))
+            print('Iteration {0:2.0f} : loss={1:}'.format(self.Nfeval, self.L))
         else:
             l_next = self.loss(Xi)
-            print('Iteration {0:2.0f} : S(y)={1:}, tol={2:}, acc={3:0.4f}'.format(self.Nfeval, l_next, abs(self.L - l_next), score))
+            print('Iteration {0:2.0f} : loss={1:8.4f}, tol={2:8.4f}, acc={3:0.4f}'.format(self.Nfeval, l_next, abs(self.L - l_next), score))
             self.L = l_next
         self.Nfeval += 1
 
@@ -51,29 +53,26 @@ class C_SVM():
         self.y_fit = np.array(y.loc[:, 'Bound'])
         self.X_fit = X
         n = self.K_fit.shape[0]
-        a0 = np.random.randn(n)
-        constraints = []
-        for i in range(n):
-            constraints.append({'type': 'ineq',
-                                'fun': lambda a: self.C - a[i] * self.y_fit[i],
-                                'jac': lambda a: -self.y_fit})
-            constraints.append({'type': 'ineq',
-                                'fun': lambda a: a[i] * self.y_fit[i],
-                                'jac': lambda a: self.y_fit})
-        constraints = tuple(constraints)
-        if self.method == 'SLSQP':
-            if self.print_callbacks:
-                print('Starting gradient descent:\n')
-                res = minimize(self.loss, a0, jac=self.jac,
-                               constraints=constraints, method='SLSQP',
-                               tol=self.tol, callback=self.callbackF,
-                               options={'maxiter': self.maxiter})
-            else:
-                res = minimize(self.loss, a0, jac=self.jac,
-                               constraints=constraints, method='SLSQP',
-                               tol=self.tol, options={'maxiter': self.maxiter})
-        self.idx_sv = np.where(res.x > self.eps)
+        a0 = np.zeros(n)
+        if self.method == 'trust':
+            warnings.filterwarnings('ignore')
+            constraints = LinearConstraint(np.diag(self.y_fit), np.zeros(n), self.C * np.ones(n))
+            res = minimize(self.loss, a0, jac=self.jac, hess=self.hess,
+                           constraints=constraints, method='trust-constr',
+                           callback=self.callbackF,
+                           tol=self.tol, options={'maxiter': self.maxiter})
+        elif self.method == 'SLSQP':
+            Y = np.diag(self.y_fit)
+            constraints = ({'type': 'ineq', 'fun': lambda x: self.C*np.ones(n) - np.dot(Y, x), 'jac': lambda x: -Y},
+                           {'type': 'ineq', 'fun': lambda x: np.dot(Y, x), 'jac': lambda x: Y})
+            res = minimize(self.loss, a0, jac=self.jac,
+                           constraints=constraints, method='SLSQP',
+                           callback=self.callbackF,
+                           tol=self.tol, options={'maxiter': self.maxiter})
+        self.idx_sv = np.where(np.abs(res.x) > self.eps)
         self.sv = res.x[self.idx_sv]
+        self.idx_sv = self.idx_fit[self.idx_sv]
+        warnings.filterwarnings('always')
         return self.sv
 
     def predict(self, X):
@@ -82,6 +81,7 @@ class C_SVM():
         self.idx_tot = np.unique(np.concatenate((self.idx_fit, self.idx_pred)))
         pred = []
         for i in self.idx_pred:
+
             pred.append(np.sign(np.dot(self.sv, self.K[self.idx_sv, i].squeeze())))
         return np.array(pred)
 
