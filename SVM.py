@@ -118,7 +118,7 @@ class C_SVM():
         return np.mean(pred == label)
 
 
-def cv(self, Cs, data, kfolds=5, pickleName='cv_C_SVM', *args):
+def cv(Cs, data, kfolds=5, pickleName='cv_C_SVM', *args):
     scores_tr = np.zeros((kfolds, len(Cs)))
     scores_te = np.zeros((kfolds, len(Cs)))
     X_tr, y_tr, X_te, y_te = data
@@ -137,7 +137,7 @@ def cv(self, Cs, data, kfolds=5, pickleName='cv_C_SVM', *args):
         y_val = y_train_.iloc[idx_val, :]
         s_tr, s_te = [], []
         for C in tqdm(Cs):
-            svm = C_SVM(self.K, self.ID, C=C, print_callbacks=False, *args)
+            svm = C_SVM(C=C, print_callbacks=False, *args)
             svm.fit(X_train, y_train, X_val, y_val)
             pred_tr = svm.predict(X_train)
             score_tr = svm.score(pred_tr, y_train)
