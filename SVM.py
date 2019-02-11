@@ -18,6 +18,9 @@ class C_SVM():
         self.method = method
         self.print_callbacks = print_callbacks
         self.Nfeval = 1
+        self.val_accuracies = []
+        self.idx_svS = []
+        self.svS = []
 
     def loss(self, a):
         return -(2 * np.dot(a, self.y_fit) - np.dot(a.T, np.dot(self.K_fit, a)))
@@ -41,6 +44,9 @@ class C_SVM():
             val_acc = 0
         else:
             val_acc = self.score(self.predict(self.X_pred), self.y_pred)
+            self.val_accuracies.append(val_acc)
+        self.svS.append(self.sv)
+        self.idx_svS.append(self.idx_sv)
         if self.Nfeval == 1:
             self.L = self.loss(Xi)
             print('Iteration {0:2.0f} : loss={1:8.4f}'.format(self.Nfeval, self.L))
@@ -83,9 +89,17 @@ class C_SVM():
                            bounds=bounds, method='L-BFGS-B',
                            callback=self.callbackF,
                            tol=self.tol, options={'maxiter': self.maxiter})
-        self.idx_sv = np.where(np.abs(res.x) > self.eps)
-        self.sv = res.x[self.idx_sv]
-        self.idx_sv = self.idx_fit[self.idx_sv]
+        elif self.method == "Newton":
+            bounds = Bounds(np.array([-self.C if self.y_fit[i] <= 0 else 0 for i in range(n)]),
+                            np.array([+self.C if self.y_fit[i] >= 0 else 0 for i in range(n)]))
+            res = minimize(self.loss, a0, jac=self.jac,
+                           bounds=bounds, method='TNC',
+                           callback=self.callbackF,
+                           tol=self.tol, options={'maxiter': self.maxiter})
+        # Select the alphas which led to the best accuracy on validation set
+        best_val_idx = np.argmax(np.array(self.val_accuracies))[0]
+        self.sv = self.svS[best_val_idx]
+        self.idx_sv = self.idx_svS[best_val_idx]
         warnings.filterwarnings('always')
         return self.sv
 
