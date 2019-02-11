@@ -47,15 +47,18 @@ class C_SVM():
             self.val_accuracies.append(val_acc)
         self.svS.append(self.sv)
         self.idx_svS.append(self.idx_sv)
-        if self.Nfeval == 1:
-            self.L = self.loss(Xi)
-            print('Iteration {0:2.0f} : loss={1:8.4f}'.format(self.Nfeval, self.L))
+        if self.print_callbacks:
+            if self.Nfeval == 1:
+                self.L = self.loss(Xi)
+                print('Iteration {0:2.0f} : loss={1:8.4f}'.format(self.Nfeval, self.L))
+            else:
+                l_next = self.loss(Xi)
+                print('Iteration {0:2.0f} : loss={1:8.4f}, tol={2:8.4f}, train_acc={3:0.4f}, val_acc={4:0.4f}'
+                      .format(self.Nfeval, l_next, abs(self.L - l_next), train_acc, val_acc))
+                self.L = l_next
+            self.Nfeval += 1
         else:
-            l_next = self.loss(Xi)
-            print('Iteration {0:2.0f} : loss={1:8.4f}, tol={2:8.4f}, train_acc={3:0.4f}, val_acc={4:0.4f}'
-                  .format(self.Nfeval, l_next, abs(self.L - l_next), train_acc, val_acc))
-            self.L = l_next
-        self.Nfeval += 1
+            self.Nfeval += 1
 
     def fit(self, X, y, X_pred=None, y_pred=None):
         self.Id_fit = np.array(X.loc[:, 'Id'])
