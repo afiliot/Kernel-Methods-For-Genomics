@@ -5,6 +5,7 @@ import os
 import pickle as pkl
 from scipy.optimize import minimize, LinearConstraint, Bounds
 import warnings
+warnings.filterwarnings('ignore')
 
 
 class C_SVM():
@@ -68,7 +69,6 @@ class C_SVM():
         n = self.K_fit.shape[0]
         a0 = np.zeros(n)
         if self.method == 'trust':
-            warnings.filterwarnings('ignore')
             constraints = LinearConstraint(np.diag(self.y_fit), np.zeros(n), self.C * np.ones(n))
             res = minimize(self.loss, a0, jac=self.jac, hess=self.hess,
                            constraints=constraints, method='trust-constr',
@@ -100,7 +100,6 @@ class C_SVM():
         best_val_idx = np.argmax(np.array(self.val_accuracies))
         self.sv = self.svS[best_val_idx]
         self.idx_sv = self.idx_svS[best_val_idx]
-        warnings.filterwarnings('always')
         return self.sv
 
     def predict(self, X):
