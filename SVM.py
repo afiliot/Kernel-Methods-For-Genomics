@@ -3,7 +3,7 @@ import numpy as np
 from tqdm import tqdm_notebook as tqdm
 import os
 import pickle as pkl
-from scipy.optimize import minimize, LinearConstraint
+from scipy.optimize import minimize, LinearConstraint, Bounds
 import warnings
 
 
@@ -74,6 +74,13 @@ class C_SVM():
                            {'type': 'ineq', 'fun': lambda x: np.dot(Y, x), 'jac': lambda x: Y})
             res = minimize(self.loss, a0, jac=self.jac,
                            constraints=constraints, method='SLSQP',
+                           callback=self.callbackF,
+                           tol=self.tol, options={'maxiter': self.maxiter})
+        elif self.method == "BFGS":
+            bounds = Bounds(np.array([-self.C if self.y_fit[i] <= 0 else 0 for i in range(n)]),
+                            np.array([+self.C if self.y_fit[i] >= 0 else 0 for i in range(n)]))
+            res = minimize(self.loss, a0, jac=self.jac,
+                           bounds=bounds, method='L-BFGS-B',
                            callback=self.callbackF,
                            tol=self.tol, options={'maxiter': self.maxiter})
         self.idx_sv = np.where(np.abs(res.x) > self.eps)
