@@ -8,7 +8,7 @@ import warnings
 
 
 class C_SVM():
-    def __init__(self, K, ID, C=10, maxiter=1000, eps=1e-5, tol=1e-4, method='trust', print_callbacks=True):
+    def __init__(self, K, ID, C=10, maxiter=1000, eps=1e-5, tol=1e-4, method='BFGS', print_callbacks=True):
         self.K = K
         self.ID = ID
         self.C = C
@@ -61,10 +61,7 @@ class C_SVM():
         self.Id_fit = np.array(X.loc[:, 'Id'])
         self.idx_fit = np.where(np.in1d(self.ID, self.Id_fit))[0]
         self.K_fit = self.K[self.idx_fit][:, self.idx_fit]
-        self.y_fit = np.array(y.loc[:, 'Bound'])
-        self.X_fit = X
-        self.X_pred = X_pred
-        self.y_pred = y_pred
+        self.y_fit, self.X_fit, self.X_pred, self.y_pred = np.array(y.loc[:, 'Bound']), X, X_pred, y_pred
         n = self.K_fit.shape[0]
         a0 = np.zeros(n)
         if self.method == 'trust':
@@ -120,37 +117,39 @@ class C_SVM():
         assert 0 not in np.unique(label), "Labels must be -1 or 1, not 0 or 1"
         return np.mean(pred == label)
 
-    def cv(self, Cs, data, kfolds=5, pickleName='cv_C_SVM'):
-        scores_tr = np.zeros((kfolds, len(Cs)))
-        scores_te = np.zeros((kfolds, len(Cs)))
-        X_tr, y_tr, X_te, y_te = data
-        X_train_ = pd.concat((X_tr, X_te)).reset_index(drop=True)
-        y_train_ = pd.concat((y_tr, y_te)).reset_index(drop=True)
-        n = X_train_.shape[0]
-        p = int(n // kfolds)
-        for k in tqdm(range(kfolds)):
-            print('Fold {}'.format(k))
-            q = p * (k + 1) + n % kfolds if k == kfolds - 1 else p * (k + 1)
-            idx_val = np.arange(p * k, q)
-            idx_train = np.setdiff1d(np.arange(n), idx_val)
-            X_train = X_train_.iloc[idx_train, :]
-            y_train = y_train_.iloc[idx_train, :]
-            X_val = X_train_.iloc[idx_val, :]
-            y_val = y_train_.iloc[idx_val, :]
-            s_tr, s_te = [], []
-            for C in tqdm(Cs):
-                svm = C_SVM(self.K, self.ID, C=C, print_callbacks=False); svm.fit(X_train, y_train, X_val, y_val)
-                pred_tr = svm.predict(X_train)
-                score_tr = svm.score(pred_tr, y_train)
-                pred_te = svm.predict(X_val)
-                score_te = svm.score(pred_te, y_val)
-                s_tr.append(score_tr)
-                s_te.append(score_te)
-                print('C={}, best accuracy on train ({:0.4f}) and val ({:0.4f})'.format(C, score_tr, score_te))
-            scores_tr[k], scores_te[k] = s_tr, s_te
-        mean_scores_tr, mean_scores_te = np.mean(scores_tr, axis=0), np.mean(scores_te, axis=0)
-        C_opt = Cs[np.argmax(mean_scores_te)]
-        print('Best constant C: {}, accuracy on val {:0.4f}'.format(C_opt, np.max(mean_scores_te)))
-        pkl.dump([scores_tr, scores_te, mean_scores_tr, mean_scores_te, C_opt],
-                 open(os.path.join('./Data', pickleName), 'wb'))
-        return C_opt, scores_tr, scores_te, mean_scores_tr, mean_scores_te
+
+def cv(self, Cs, data, kfolds=5, pickleName='cv_C_SVM'):
+    scores_tr = np.zeros((kfolds, len(Cs)))
+    scores_te = np.zeros((kfolds, len(Cs)))
+    X_tr, y_tr, X_te, y_te = data
+    X_train_ = pd.concat((X_tr, X_te)).reset_index(drop=True)
+    y_train_ = pd.concat((y_tr, y_te)).reset_index(drop=True)
+    n = X_train_.shape[0]
+    p = int(n // kfolds)
+    for k in tqdm(range(kfolds)):
+        print('Fold {}'.format(k))
+        q = p * (k + 1) + n % kfolds if k == kfolds - 1 else p * (k + 1)
+        idx_val = np.arange(p * k, q)
+        idx_train = np.setdiff1d(np.arange(n), idx_val)
+        X_train = X_train_.iloc[idx_train, :]
+        y_train = y_train_.iloc[idx_train, :]
+        X_val = X_train_.iloc[idx_val, :]
+        y_val = y_train_.iloc[idx_val, :]
+        s_tr, s_te = [], []
+        for C in tqdm(Cs):
+            svm = C_SVM(self.K, self.ID, C=C, print_callbacks=False)
+            svm.fit(X_train, y_train, X_val, y_val)
+            pred_tr = svm.predict(X_train)
+            score_tr = svm.score(pred_tr, y_train)
+            pred_te = svm.predict(X_val)
+            score_te = svm.score(pred_te, y_val)
+            s_tr.append(score_tr)
+            s_te.append(score_te)
+            print('C={}, best accuracy on train ({:0.4f}) and val ({:0.4f})'.format(C, score_tr, score_te))
+        scores_tr[k], scores_te[k] = s_tr, s_te
+    mean_scores_tr, mean_scores_te = np.mean(scores_tr, axis=0), np.mean(scores_te, axis=0)
+    C_opt = Cs[np.argmax(mean_scores_te)]
+    print('Best constant C: {}, accuracy on val {:0.4f}'.format(C_opt, np.max(mean_scores_te)))
+    pkl.dump([scores_tr, scores_te, mean_scores_tr, mean_scores_te, C_opt],
+             open(os.path.join('./Data', pickleName), 'wb'))
+    return C_opt, scores_tr, scores_te, mean_scores_tr, mean_scores_te
