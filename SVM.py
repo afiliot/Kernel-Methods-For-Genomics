@@ -46,7 +46,7 @@ class C_SVM():
             print('Iteration {0:2.0f} : loss={1:8.4f}'.format(self.Nfeval, self.L))
         else:
             l_next = self.loss(Xi)
-            print('Iteration {0:2.0f} : loss={1:8.4f}, tol={2:8.4f}, train_acc={3:0.4f}, val_acc={3:0.4f}'
+            print('Iteration {0:2.0f} : loss={1:8.4f}, tol={2:8.4f}, train_acc={3:0.4f}, val_acc={4:0.4f}'
                   .format(self.Nfeval, l_next, abs(self.L - l_next), train_acc, val_acc))
             self.L = l_next
         self.Nfeval += 1
