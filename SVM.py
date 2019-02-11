@@ -130,7 +130,7 @@ def cv(Cs, data, kfolds=5, pickleName='cv_C_SVM', **kwargs):
     n = X_train_.shape[0]
     p = int(n // kfolds)
     for k in tqdm(range(kfolds)):
-        print('Fold {}'.format(k))
+        print('Fold {}'.format(k+1))
         q = p * (k + 1) + n % kfolds if k == kfolds - 1 else p * (k + 1)
         idx_val = np.arange(p * k, q)
         idx_train = np.setdiff1d(np.arange(n), idx_val)
@@ -139,7 +139,7 @@ def cv(Cs, data, kfolds=5, pickleName='cv_C_SVM', **kwargs):
         X_val = X_train_.iloc[idx_val, :]
         y_val = y_train_.iloc[idx_val, :]
         s_tr, s_te = [], []
-        for C in tqdm(Cs):
+        for C in Cs:
             svm = C_SVM(C=C, print_callbacks=False, **kwargs)
             svm.fit(X_train, y_train, X_val, y_val)
             pred_tr = svm.predict(X_train)
