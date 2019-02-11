@@ -97,7 +97,7 @@ class C_SVM():
                            callback=self.callbackF,
                            tol=self.tol, options={'maxiter': self.maxiter})
         # Select the alphas which led to the best accuracy on validation set
-        best_val_idx = np.argmax(np.array(self.val_accuracies))[0]
+        best_val_idx = np.argmax(np.array(self.val_accuracies))
         self.sv = self.svS[best_val_idx]
         self.idx_sv = self.idx_svS[best_val_idx]
         warnings.filterwarnings('always')
@@ -146,7 +146,7 @@ class C_SVM():
                 score_te = svm.score(pred_te, y_val)
                 s_tr.append(score_tr)
                 s_te.append(score_te)
-                print('C={}, accuracy on train ({:0.4f}) and val ({:0.4f})'.format(C, score_tr, score_te))
+                print('C={}, best accuracy on train ({:0.4f}) and val ({:0.4f})'.format(C, score_tr, score_te))
             scores_tr[k], scores_te[k] = s_tr, s_te
         mean_scores_tr, mean_scores_te = np.mean(scores_tr, axis=0), np.mean(scores_te, axis=0)
         C_opt = Cs[np.argmax(mean_scores_te)]
