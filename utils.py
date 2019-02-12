@@ -202,7 +202,8 @@ def export_predictions(svms, X_tests):
     :param X_tests: list, list of testing pd.DataFrames
     :return: np.array, predictions
     """
-    for k, svm, X_test in enumerate(zip(svms, X_tests)):
+    for k, svm in enumerate(svms):
+        X_test = X_tests[k]
         pred_test = svm.predict(X_test).astype(int)
         if k==0:
             y_test = pd.DataFrame({'Id': X_test.Id, 'Bound': pred_test})
