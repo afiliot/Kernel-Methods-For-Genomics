@@ -4,7 +4,7 @@ import os
 import warnings
 import kernels as km
 import pickle as pkl
-
+import datetime
 
 def get_train(k):
     """
@@ -98,9 +98,10 @@ def train_test_split():
     Training and testing data sets are balanced w.r.t to the target y.
     :return:
         - X_train: pd.DataFrame, training features
-        - X_val: pd.DataFrame, testing features
+        - X_val: pd.DataFrame, validation features
         - y_train: pd.DataFrame, training labels
-        - y_val: pd.DataFrame, testing labels
+        - y_val: pd.DataFrame, validation labels
+        - X_test: pd.DataFrame, testing features
     """
     for k in range(3):
         print('k = ' + str(k))
@@ -128,11 +129,12 @@ def get_training_datas(method, param, all=True, replace=False):
     :param: replace: Boolean, whether or not replace the existing files in the repo
     :return:
         - X_train: pd.DataFrame, training features
-        - X_val: pd.DataFrame, testing features
+        - X_val: pd.DataFrame, validation features
         - y_train: pd.DataFrame, training labels
-        - y_val: pd.DataFrame, testing labels
-        - K_train: np.array, training kernel
-        - K_val: np.array, testing kernel
+        - y_val: pd.DataFrame, validation labels
+        - X_test: pd.DataFrame, testing features
+        - K: np.array, kernel
+        - ID: np.array, Ids
     """
     warnings.filterwarnings('ignore')
     file = 'training_data_'+method+'.pkl'
@@ -169,10 +171,12 @@ def select_k(k, X_train, y_train, X_val, y_val, X_test, K, ID):
     :param k: int, which data set to restrict on
     :param X_train: pd.DataFrame, training features
     :param y_train: pd.DataFrame, training labels
-    :param X_val: pd.DataFrame, testing features
-    :param y_val: pd.DataFrame, testing labels
-    :param K_train: np.array, training kernel
-    :return: pd.DataFrames and kernels
+    :param X_val: pd.DataFrame, validation features
+    :param y_val: pd.DataFrame, validation labels
+    :param X_test: pd.DataFrame, testing features
+    :param K: np.array, kernel
+    :param ID: np.array, IDs
+    :return: pd.DataFrames and kernel
     """
     idx_train = np.where(np.array(X_train.loc[:, 'k']) == k)[0]
     idx_val = np.where(np.array(X_val.loc[:, 'k']) == k)[0]
@@ -189,3 +193,23 @@ def select_k(k, X_train, y_train, X_val, y_val, X_test, K, ID):
     X_test_ = X_test.iloc[idx_test]
     K_ = K[idx][:, idx]
     return X_train_, y_train_, X_val_, y_val_, X_test_, K_, id_k
+
+
+def export_predictions(svms, X_tests):
+    """
+    Compute and export predictions on test set (0 or 1)
+    :param svms: list, list of trained svms
+    :param X_tests: list, list of testing pd.DataFrames
+    :return: np.array, predictions
+    """
+    for k, svm, X_test in enumerate(zip(svms, X_tests)):
+        pred_test = svm.predict(X_test).astype(int)
+        if k==0:
+            y_test = pd.DataFrame({'Id': X_test.Id, 'Bound': pred_test})
+        else:
+            y_test = pd.concat((y_test, pd.DataFrame({'Id': X_test.Id, 'Bound': pred_test})))
+    y_test.Id = -y_test.Id - 1
+    y_test.Bound = y_test.Bound.replace(-1, 0)
+    t = datetime.datetime.now().time()
+    y_test.to_csv('y_test_' + str(t) + '.csv', index=False)
+    return y_test
