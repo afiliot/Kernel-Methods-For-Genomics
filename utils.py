@@ -5,6 +5,7 @@ import warnings
 import kernels as km
 import pickle as pkl
 import datetime
+import operator
 
 def get_train(k):
     """
@@ -214,3 +215,22 @@ def export_predictions(svms, X_tests):
     t = datetime.datetime.now().time()
     y_test.to_csv('y_test_' + str(t) + '.csv', index=False)
     return y_test
+
+def sort_accuracies(algo='C_SVM', k=1):
+    k_ = 'k'+str(k)
+    val_scores = {}
+    C_opts = {}
+    warnings.filterwarnings('ignore')
+    for file in os.listdir('./Data'):
+        if file[3:9] == 'C_SVM_' and k_ in file:
+            print(file)
+            pred = pkl.load(open(os.path.join('./Data', file), 'rb'))
+            file = file.split(k_)[0][5:-1]
+            val_scores[file] = np.max(pred[3])
+            C_opts[file] = pred[4]
+    sorted_val = sorted(val_scores.items(), key=operator.itemgetter(1), reverse=True)
+    sorted_C = {}
+    for i in range(len(sorted_val)):
+        key = sorted_val[i][0]
+        sorted_C[key] = C_opts[key]
+    return sorted_val, sorted_C
