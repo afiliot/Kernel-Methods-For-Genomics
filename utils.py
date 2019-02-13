@@ -121,7 +121,7 @@ def train_test_split():
     return X_train, y_train, X_val, y_val, X_test
 
 
-def get_training_datas(method, param, all=True, replace=False):
+def get_training_datas(method, all=True, replace=False):
     """
     Construct training and testing data, and kernels.
     :param: d: int, maximal degree for Weighted Degree Kernel
@@ -158,7 +158,7 @@ def get_training_datas(method, param, all=True, replace=False):
             X_test.loc[:, 'Id'] = -(X_test.loc[:, 'Id']+1)
             X = pd.concat((X_train, X_val, X_test), axis=0)
             ID = np.array(X.loc[:, 'Id'])
-            K = km.select_method(X, method, param)
+            K = km.select_method(X, method)
             file = 'training_data_'+method+'.pkl'
             pkl.dump([X_train, y_train, X_val, y_val, X_test, K, ID], open(os.path.join('./Data', file), 'wb'))
         warnings.simplefilter('always')

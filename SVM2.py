@@ -151,7 +151,7 @@ def cv(Ls, data, kfolds=5, pickleName='cv_C_SVM', **kwargs):
         scores_tr[k], scores_te[k] = s_tr, s_te
     mean_scores_tr, mean_scores_te = np.mean(scores_tr, axis=0), np.mean(scores_te, axis=0)
     l_opt = Ls[np.argmax(mean_scores_te)]
-    print('Best constant C: {}, accuracy on val {:0.4f}'.format(l_opt, np.max(mean_scores_te)))
+    print('Best constant lambda: {}, accuracy on val {:0.4f}'.format(l_opt, np.max(mean_scores_te)))
     pkl.dump([scores_tr, scores_te, mean_scores_tr, mean_scores_te, l_opt],
              open(os.path.join('./Data', pickleName), 'wb'))
     return l_opt, scores_tr, scores_te, mean_scores_tr, mean_scores_te
