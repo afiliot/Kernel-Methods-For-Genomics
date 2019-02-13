@@ -223,7 +223,6 @@ def sort_accuracies(algo='C_SVM', k=1):
     warnings.filterwarnings('ignore')
     for file in os.listdir('./Data'):
         if file[3:9] == 'C_SVM_' and k_ in file:
-            print(file)
             pred = pkl.load(open(os.path.join('./Data', file), 'rb'))
             file = file.split(k_)[0][5:-1]
             val_scores[file] = np.max(pred[3])
