@@ -285,12 +285,15 @@ def get_LA_K(X, e=11, d=2):
 
 
 def normalize_K(K):
-    n = K.shape[0]
-    for i in tqdm(range(n), 'Normalizing kernel'):
-        for j in range(i+1, n):
-            K[i, j] = K[i, j] / np.sqrt(K[i, i] * K[j, j])
-            K[j, i] = K[i, j]
-    np.fill_diagonal(K, np.ones(n))
+    if K[0, 0] == 1:
+        print('Kernel already normalized')
+    else:
+        n = K.shape[0]
+        for i in tqdm(range(n), 'Normalizing kernel'):
+            for j in range(i+1, n):
+                K[i, j] = K[i, j] / np.sqrt(K[i, i] * K[j, j])
+                K[j, i] = K[i, j]
+        np.fill_diagonal(K, np.ones(n))
     return K
 
 
