@@ -283,6 +283,14 @@ def get_LA_K(X, e=11, d=2):
 
 #################################################### Select method #####################################################
 
+def normalize_K(K):
+    n = K.shape[0]
+    for i in range(n):
+        for j in range(i+1, n):
+            K[i, j] = K[i, j] / np.sqrt(K[i, i] * K[j, j])
+            K[j, i] = K[i, j]
+    np.fill_diagonal(K, np.ones(n))
+    return K
 
 def select_method(X, method):
     """
