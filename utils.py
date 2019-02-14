@@ -6,6 +6,7 @@ import kernels as km
 import pickle as pkl
 import datetime
 import operator
+from itertools import product
 
 def get_train(k):
     """
@@ -216,13 +217,14 @@ def export_predictions(svms, X_tests):
     y_test.to_csv('y_test_' + str(t) + '.csv', index=False)
     return y_test
 
+
 def sort_accuracies(algo='C_SVM', k=1):
     k_ = 'k'+str(k)
     val_scores = {}
     C_opts = {}
     warnings.filterwarnings('ignore')
     for file in os.listdir('./Data'):
-        if file[3:9] == 'C_SVM_' and k_ in file:
+        if algo in file and k_ in file:
             pred = pkl.load(open(os.path.join('./Data', file), 'rb'))
             file = file.split(k_)[0][5:-1]
             val_scores[file] = np.max(pred[3])
@@ -233,3 +235,17 @@ def sort_accuracies(algo='C_SVM', k=1):
         key = sorted_val[i][0]
         sorted_C[key] = C_opts[key]
     return sorted_val, sorted_C
+
+
+Cs = np.sort([i*10**j for (i,j) in product(range(1,10), range(-3,1))])
+
+
+def run_expe(methods, k=3, maxiter=500, kfolds=5, Cs_1=Cs, Cs_2=Cs, Cs_3=Cs):
+    for m in methods:
+        X_train, y_train, X_val, y_val, X_test, K, ID = get_training_datas(method=m, all=True, replace=False)
+        for k_ in range(1, k+1):
+            exec("X_train_"+str(k_)+", y_train_"+str(k_)+", X_val_"+str(k_)+", y_val_"+str(k_)+", X_test_"+str(k_)+", K_"+str(k_)+", id_"+str(k_)+" = utils.select_k(k_, X_train, y_train, X_val, y_val, X_test, K, ID)")
+            exec("data_"+str(k_)+" = [X_train_"+str(k_)+", y_train_"+str(k_)+", X_val_"+str(k_)+", y_val_"+str(k_)+"]")
+            pickleName = 'cv_C_SVM_'+m+'_k'+str(k_)+'_max_iter'+str(maxiter)+'_solver_BFGS_full.pkl'
+            exec("C_opt_"+str(k_)+", _, _, _, _ = SVM.cv(Cs=Cs_"+str(k_)+", data=data_"+str(k_)+", kfolds=kfolds, pickleName=pickleName, K=K, ID=ID, maxiter=maxiter, method='BFGS')")
+

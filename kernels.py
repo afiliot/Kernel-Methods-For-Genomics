@@ -1,5 +1,5 @@
 import numpy as np
-from tqdm import tqdm as tqdm
+from tqdm import tqdm_notebook as tqdm
 from itertools import product
 from skbio.alignment import StripedSmithWaterman
 
@@ -16,7 +16,7 @@ def get_phi_u(x, k, betas):
     """
     phi_u = np.zeros(len(betas))
     for i in range(len(x) - k + 1):
-        kmer = format(x[i:i + k])
+        kmer = x[i:i + k]
         for i, b in enumerate(betas):
             phi_u[i] = phi_u[i] + 1 if b == kmer else phi_u[i]
     return phi_u
@@ -166,7 +166,7 @@ def get_phi_km(x, k, m, betas):
     """
     phi_km = np.zeros(len(betas))
     for i in range(len(x) - k + 1):
-        kmer = format(x[i:i + k])
+        kmer = x[i:i + k]
         for i, b in enumerate(betas):
             phi_km[i] = phi_km[i] + 1 if np.sum(kmer != b) <= m else phi_km[i]
     return phi_km
