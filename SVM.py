@@ -215,5 +215,5 @@ def cv(Cs, data, kfolds=5, pickleName='cv_C_SVM', **kwargs):
     C_opt = Cs[np.argmax(mean_scores_te)]
     print('Best constant C: {}, accuracy on val {:0.4f}'.format(C_opt, np.max(mean_scores_te)))
     pkl.dump([scores_tr, scores_te, mean_scores_tr, mean_scores_te, C_opt],
-             open(os.path.join('./Data', pickleName), 'wb'))
+             open(os.path.join('./Data/CrossVals/', pickleName), 'wb'))
     return C_opt, scores_tr, scores_te, mean_scores_tr, mean_scores_te
