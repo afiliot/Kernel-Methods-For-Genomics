@@ -95,20 +95,16 @@ def train_test_split():
         - X_test: pd.DataFrame, testing features
     """
     for k in range(3):
-        print('k = ' + str(k))
         X, y = get_train(k)
         if k == 0:
             X_train, y_train, X_val, y_val = train_test_split_k(X, y, 0.75)
             X_test = get_test(k)
         else:
             X_tr, y_tr, X_v, y_te = train_test_split_k(X, y, 0.75)
-            X_train = pd.concat((X_train, X_tr), axis=0)
-            X_val = pd.concat((X_val, X_v), axis=0)
-            y_train = pd.concat((y_train, y_tr), axis=0)
-            y_val = pd.concat((y_val, y_te), axis=0)
+            X_train, X_val = pd.concat((X_train, X_tr), axis=0), pd.concat((X_val, X_v), axis=0)
+            y_train, y_val = pd.concat((y_train, y_tr), axis=0), pd.concat((y_val, y_te), axis=0)
             X_test = pd.concat((X_test, get_test(k)), axis=0)
         X_train, X_val, y_train, y_val, X_test = resetIndex([X_train, X_val, y_train, y_val, X_test])
-    print('Final shape: train {}, val {}, test {}'.format(X_train.shape, X_val.shape, X_test.shape))
     return X_train, y_train, X_val, y_val, X_test
 
 
@@ -166,15 +162,11 @@ def select_k(k, X_train, y_train, X_val, y_val, X_test, K, ID):
     idx_train = np.where(np.array(X_train.loc[:, 'k']) == k)[0]
     idx_val = np.where(np.array(X_val.loc[:, 'k']) == k)[0]
     idx_test = np.where(np.array(X_test.loc[:, 'k']) == k)[0]
-    id_train = X_train.iloc[idx_train, 0]
-    id_val = X_val.iloc[idx_val, 0]
-    id_test = X_test.iloc[idx_test, 0]
+    id_train, id_val, id_test = X_train.iloc[idx_train, 0], X_val.iloc[idx_val, 0], X_test.iloc[idx_test, 0]
     id_k = np.concatenate((id_train, id_val, id_test))
     idx = np.where(np.in1d(ID, id_k))[0]
-    X_train_ = X_train.iloc[idx_train]
-    y_train_ = y_train.iloc[idx_train]
-    y_val_ = y_val.iloc[idx_val]
-    X_val_ = X_val.iloc[idx_val]
+    X_train_, y_train_ = X_train.iloc[idx_train], y_train.iloc[idx_train]
+    X_val_, y_val_ = X_val.iloc[idx_val], y_val.iloc[idx_val]
     X_test_ = X_test.iloc[idx_test]
     K_ = K[idx][:, idx]
     return X_train_, y_train_, X_val_, y_val_, X_test_, K_, id_k
