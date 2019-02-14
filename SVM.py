@@ -124,7 +124,7 @@ def cv(Cs, data, kfolds=5, pickleName='cv_C_SVM', **kwargs):
     :param data: list, X_train + y_train + X_val + y_val
     :param kfolds: int, number of folds used for CV
     :param pickleName: string
-    :param kwargs: arguments used for C_SVM (maxiter, tol, etc...)
+    :param kwargs: arguments used for C_SVM (tol, etc...)
     :return: list: - C_opt: float, optimal constant (best average score)
                    - scores_tr: np.array, scores on train set for each constant C (and each fold)
                    - scores_te: np.array, scores on val set for each constant C (and each fold)

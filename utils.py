@@ -268,12 +268,11 @@ def sort_accuracies(algo='C_SVM', k=3):
 Cs = np.sort([i*10**j for (i,j) in product(range(1,10), range(-3,1))])
 
 
-def run_expe(methods, k=3, maxiter=500, kfolds=5, Cs_1=Cs, Cs_2=Cs, Cs_3=Cs):
+def run_expe(methods, k=3, kfolds=5, Cs_1=Cs, Cs_2=Cs, Cs_3=Cs):
     """
     Run cross validations on k data sets with constants Cs
     :param methods: list of strings, list of methods
     :param k: int, number of data sets to consider (default 3, all)
-    :param maxiter: int, maximum iterations for gradient descent
     :param kfolds: int, number of folds for c.v.
     :param Cs_1: list or np.array, constants for data set 1
     :param Cs_2: list or np.array, constants for data set 2
@@ -287,7 +286,7 @@ def run_expe(methods, k=3, maxiter=500, kfolds=5, Cs_1=Cs, Cs_2=Cs, Cs_3=Cs):
         for k_ in range(1, k+1):
             exec("X_train_"+str(k_)+", y_train_"+str(k_)+", X_val_"+str(k_)+", y_val_"+str(k_)+", X_test_"+str(k_)+", K_"+str(k_)+", id_"+str(k_)+" = select_k(k_, X_train, y_train, X_val, y_val, X_test, K, ID)")
             exec("data_"+str(k_)+" = [X_train_"+str(k_)+", y_train_"+str(k_)+", X_val_"+str(k_)+", y_val_"+str(k_)+"]")
-            pickleName = 'cv_C_SVM_'+m+'_k'+str(k_)+'_max_iter'+str(maxiter)+'_solver_BFGS_full.pkl'
-            exec("C_opt_"+str(k_)+", _, _, _, _ = SVM.cv(Cs=Cs_"+str(k_)+", data=data_"+str(k_)+", kfolds=kfolds, pickleName=pickleName, K=K, ID=ID, maxiter=maxiter, method='BFGS')")
+            pickleName = 'cv_C_SVM_'+m+'_k'+str(k_)+'.pkl'
+            exec("C_opt_"+str(k_)+", _, _, _, _ = SVM.cv(Cs=Cs_"+str(k_)+", data=data_"+str(k_)+", kfolds=kfolds, pickleName=pickleName, K=K, ID=ID)")
             exec("C[m][k_] = C_opt_"+str(k_))
     return C
