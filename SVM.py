@@ -3,8 +3,8 @@ import numpy as np
 from tqdm import tqdm_notebook as tqdm
 import os
 import pickle as pkl
-from scipy.optimize import minimize, LinearConstraint, Bounds
 import warnings
+from scipy.optimize import fmin_l_bfgs_b
 warnings.filterwarnings('ignore')
 
 
@@ -12,31 +12,22 @@ class C_SVM():
     """
     Implementation of C-SVM algorithm
     """
-    def __init__(self, K, ID, C=10, maxiter=1000, eps=1e-5, tol=1e-4, method='BFGS', print_callbacks=True):
+    def __init__(self, K, ID, C=10, eps=1e-5, tol=1e-4, print_callbacks=True):
         """
-
         :param K: np.array, kernel (computed on train+val+test data sets)
         :param ID: np.array, Ids (for ordering)
         :param C: float, regularization constant
-        :param maxiter: int, maximum number of iterations for gradient descent
         :param eps: float, threshold determining whether alpha is a support vector or not
         :param tol: float, stopping criteria for gradient descent
-        :param method: string, method used for gradient descent. Choose between 'trust', 'SLSQP', 'BFGS', 'Newton'
         :param print_callbacks: Bool, print evolution of gradient descent (suggested)
         """
         self.K = K
         self.ID = ID
         self.C = C
-        self.maxiter = maxiter
         self.tol = tol
         self.eps = eps
-        self.method = method
         self.print_callbacks = print_callbacks
-        # Parameters for callbacks
         self.Nfeval = 1
-        self.val_accuracies = []
-        self.idx_svS = []
-        self.svS = []
 
     def loss(self, a):
         """
@@ -50,14 +41,7 @@ class C_SVM():
         :param a: np.array, alphas
         :return: np.array, loss Jacobian
         """
-        return -(2 * self.y_fit - 2 * (np.dot(self.K_fit, a)))
-
-    def hess(self, a):
-        """
-        :param a: np.array, alphas
-        :return: np.array, loss Hessian
-        """
-        return -(-2 * self.K_fit)
+        return -(2 * self.y_fit - 2*np.dot(self.K_fit, a))
 
     def callbackF(self, Xi, Yi=0):
         """
@@ -66,79 +50,42 @@ class C_SVM():
         :param Xi: np.array, values returned by scipy.minimize at each iteration
         :return: None, update print
         """
-        self.idx_sv = np.where(np.abs(Xi) > self.eps)
-        self.sv = Xi[self.idx_sv]
-        self.idx_sv = self.idx_fit[self.idx_sv]
-        train_acc = self.score(self.predict(self.X_fit), self.y_fit)
-        if self.X_pred is None:
-            val_acc = 0
-        else:
-            val_acc = self.score(self.predict(self.X_pred), self.y_pred)
-            self.val_accuracies.append(val_acc)
-        self.svS.append(self.sv)
-        self.idx_svS.append(self.idx_sv)
         if self.print_callbacks:
             if self.Nfeval == 1:
                 self.L = self.loss(Xi)
                 print('Iteration {0:2.0f} : loss={1:8.4f}'.format(self.Nfeval, self.L))
             else:
                 l_next = self.loss(Xi)
-                print('Iteration {0:2.0f} : loss={1:8.4f}, tol={2:8.4f}, train_acc={3:0.4f}, val_acc={4:0.4f}'
-                      .format(self.Nfeval, l_next, abs(self.L - l_next), train_acc, val_acc))
+                print('Iteration {0:2.0f} : loss={1:8.4f}, tol={2:8.4f}'
+                      .format(self.Nfeval, l_next, abs(self.L - l_next)))
                 self.L = l_next
             self.Nfeval += 1
         else:
             self.Nfeval += 1
 
-    def fit(self, X, y, X_pred=None, y_pred=None):
+    def fit(self, X, y):
         """
         Train C-SVM on X and y. X_pred and y_pred are used for prediction.
         :param X: pd.DataFrame, training features
         :param y: pd.DataFrame, training labels
-        :param X_pred: pd.DataFrame, validation features
-        :param y_pred: pd.DataFrame, validation labels
         :return:
         """
         self.Id_fit = np.array(X.loc[:, 'Id'])
         self.idx_fit = np.where(np.in1d(self.ID, self.Id_fit))[0]
         self.K_fit = self.K[self.idx_fit][:, self.idx_fit]
-        self.y_fit, self.X_fit, self.X_pred, self.y_pred = np.array(y.loc[:, 'Bound']), X, X_pred, y_pred
+        self.y_fit, self.X_fit, = np.array(y.loc[:, 'Bound']), X
         n = self.K_fit.shape[0]
-        a0 = np.zeros(n)  # initialization
+        # initialization
+        a0 = np.zeros(n)
         # Gradient descent
-        if self.method == 'trust':
-            constraints = LinearConstraint(np.diag(self.y_fit), np.zeros(n), self.C * np.ones(n))
-            res = minimize(self.loss, a0, jac=self.jac, hess=self.hess,
-                           constraints=constraints, method='trust-constr',
-                           callback=self.callbackF,
-                           tol=self.tol, options={'maxiter': self.maxiter})
-        elif self.method == 'SLSQP':
-            Y = np.diag(self.y_fit)
-            constraints = ({'type': 'ineq', 'fun': lambda x: self.C*np.ones(n) - np.dot(Y, x), 'jac': lambda x: -Y},
-                           {'type': 'ineq', 'fun': lambda x: np.dot(Y, x), 'jac': lambda x: Y})
-            res = minimize(self.loss, a0, jac=self.jac,
-                           constraints=constraints, method='SLSQP',
-                           callback=self.callbackF,
-                           tol=self.tol, options={'maxiter': self.maxiter})
-        elif self.method == "BFGS":
-            bounds = Bounds(np.array([-self.C if self.y_fit[i] <= 0 else 0 for i in range(n)]),
-                            np.array([+self.C if self.y_fit[i] >= 0 else 0 for i in range(n)]))
-            res = minimize(self.loss, a0, jac=self.jac,
-                           bounds=bounds, method='L-BFGS-B',
-                           callback=self.callbackF,
-                           tol=self.tol, options={'maxiter': self.maxiter})
-        elif self.method == "Newton":
-            bounds = Bounds(np.array([-self.C if self.y_fit[i] <= 0 else 0 for i in range(n)]),
-                            np.array([+self.C if self.y_fit[i] >= 0 else 0 for i in range(n)]))
-            res = minimize(self.loss, a0, jac=self.jac,
-                           bounds=bounds, method='TNC',
-                           callback=self.callbackF,
-                           tol=self.tol, options={'maxiter': self.maxiter})
-        # Select the alphas which led to the best accuracy on validation set
-        best_val_idx = np.argmax(np.array(self.val_accuracies))
-        self.sv = self.svS[best_val_idx]
-        self.idx_sv = self.idx_svS[best_val_idx]
-        return self.sv
+        bounds_down = [-self.C if self.y_fit[i] <= 0 else 0 for i in range(n)]
+        bounds_up = [+self.C if self.y_fit[i] >= 0 else 0 for i in range(n)]
+        bounds = [[bounds_down[i], bounds_up[i]] for i in range(n)]
+        res = fmin_l_bfgs_b(self.loss, a0, fprime=self.jac, bounds=bounds, callback=self.callbackF)
+        # Align support vectors index with index from fit set
+        self.idx_sv = np.where(np.abs(res[0]) > self.eps)
+        self.sv = res[0][self.idx_sv]
+        self.idx_sv = self.idx_fit[self.idx_sv]
 
     def predict(self, X):
         """
@@ -146,6 +93,7 @@ class C_SVM():
         :param X: pd.DataFrame, features
         :return: np.array, predictions (-1/1)
         """
+        # Align prediction IDs with index in kernel K
         self.Id_pred = np.array(X.loc[:, 'Id'])
         self.idx_pred = np.where(np.in1d(self.ID, self.Id_pred))[0]
         self.idx_tot = np.unique(np.concatenate((self.idx_fit, self.idx_pred)))
