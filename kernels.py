@@ -1,8 +1,8 @@
 import numpy as np
 from tqdm import tqdm_notebook as tqdm
 from itertools import product
-from skbio.alignment import StripedSmithWaterman
-
+from copy import deepcopy
+from scipy.sparse.linalg import eigs
 ################################################### Spectrum Kernel ####################################################
 
 
@@ -18,7 +18,7 @@ def get_phi_u(x, k, betas):
     for i in range(len(x) - k + 1):
         kmer = x[i:i + k]
         for i, b in enumerate(betas):
-            phi_u[i] = phi_u[i] + 1 if b == kmer else phi_u[i]
+            phi_u[i] += (b == kmer)
     return phi_u
 
 
@@ -40,12 +40,7 @@ def get_spectrum_K(X, k):
             if j >= i:
                 K[i, j] = np.dot(phi_u[i], phi_u[j])
                 K[j, i] = K[i, j]
-    for i, x in tqdm(enumerate(X.loc[:, 'seq']), total=n, desc='Normalizing kernel'):
-        for j, y in enumerate(X.loc[:, 'seq']):
-            if j > i:
-                K[i, j] = K[i, j] / np.sqrt(K[i, i] * K[j, j])
-                K[j, i] = K[i, j]
-    np.fill_diagonal(K, np.ones(n))
+    K = normalize_K(K)
     return K
 
 
@@ -102,10 +97,15 @@ def get_WD_K(X, d):
                 K[j, i] = K[i, j]
     return K
 
-################################################# Weight Degree Kernel #################################################
+########################################### Weight Degree Kernel with Shifts ###########################################
 
 
 def delta(s):
+    """
+    Compute delta coefficients for weight degree kernel with shifts
+    :param s: int
+    :return: delta(s)
+    """
     return 1/2/(s+1)
 
 
@@ -164,21 +164,13 @@ def get_phi_km(x, k, m, betas):
     :param betas: list, all combinations of k-mers drawn from 'A', 'C', 'G', 'T'
     :return: np.array, feature vector of x
     """
+    x = format(x)
     phi_km = np.zeros(len(betas))
     for i in range(len(x) - k + 1):
         kmer = x[i:i + k]
         for i, b in enumerate(betas):
-            phi_km[i] = phi_km[i] + 1 if np.sum(kmer != b) <= m else phi_km[i]
+            phi_km[i] += (np.sum(kmer != b) <= m)
     return phi_km
-
-
-def letter_to_num(x):
-    """
-    Replace letters by numbers (but still strings)
-    :param x: string, DNA sequence
-    :return: string
-    """
-    return x.replace('A', '1').replace('C', '2').replace('G', '3').replace('T', '4')
 
 
 def format(x):
@@ -187,7 +179,7 @@ def format(x):
     :param x: string, DNA sequence
     :return: np.array, array of ints with 'A':1, 'C':2, 'G':3, 'T':4
     """
-    return np.array(list(letter_to_num(x)), dtype=int)
+    return np.array(list(x.replace('A', '1').replace('C', '2').replace('G', '3').replace('T', '4')), dtype=int)
 
 
 def get_mismatch_K(X, k, m):
@@ -203,7 +195,6 @@ def get_mismatch_K(X, k, m):
     betas = [format(''.join(c)) for c in product('ACGT', repeat=k)]
     phi_km_x = []
     for i, x in tqdm(enumerate(X.loc[:, 'seq']), total=n, desc='Computing feature vectors'):
-        x = letter_to_num(x)
         phi_km_x.append(get_phi_km(x, k, m, betas))
     phi_km_x = np.array(phi_km_x)
     for i, x in tqdm(enumerate(X.loc[:, 'seq']), total=n, desc='Building kernel'):
@@ -211,12 +202,7 @@ def get_mismatch_K(X, k, m):
             if j >= i:
                 K[i, j] = np.dot(phi_km_x[i], phi_km_x[j])
                 K[j, i] = K[i, j]
-    for i, x in tqdm(enumerate(X.loc[:, 'seq']), total=n, desc='Normalizing kernel'):
-        for j, y in enumerate(X.loc[:, 'seq']):
-            if j > i:
-                K[i, j] = K[i, j] / np.sqrt(K[i, i] * K[j, j])
-                K[j, i] = K[i, j]
-    np.fill_diagonal(K, np.ones(n))
+    K = normalize_K(K)
     return K
 
 
@@ -227,6 +213,15 @@ S = np.array([[4, 0, 0, 0], [0, 9, -3, -1], [0, -3, 6, 2], [0, -1, -2, 5]])
 
 
 def affine_align(x, y, e, d, beta):
+    """
+    Implement local alignment kernel where g(n) is linear g(0)=0 and g(n)=e+d(n-1)
+    :param x: string, DNA sequence
+    :param y: string, DNA sequence
+    :param e: int, gap open penalty
+    :param d: int, gap extend penalty
+    :param beta: float, parameter for k_beta(x, y)
+    :return: float, K_beta(x, y)
+    """
     x, y = format(x)-1, format(y)-1
     n_x, n_y = len(x), len(y)
     M, X, Y, X2, Y2 = [np.zeros((n_x + 1, n_y + 1))]*5
@@ -240,7 +235,17 @@ def affine_align(x, y, e, d, beta):
     return (1/beta) * np.log(1 + X2[n_x, n_y] + Y2[n_x, n_y] + M[n_x, n_y])
 
 
-def Smith_Waterman(x, y, e, d, beta):
+def Smith_Waterman(x, y, e=11, d=1, beta=0.5):
+    """
+    Implement Smith Waterman algorithm for computing Local Alignment Kernel (LA). The difference here is that
+    we consider the maximum between the terms and no more sums.
+    :param x: string, DNA sequence
+    :param y: string, DNA sequence
+    :param e: int, gap open penalty
+    :param d: int, gap extend penalty
+    :param beta: float, parameter for k_beta(x, y)
+    :return: float, K_beta(x, y)
+    """
     x, y = format(x) - 1, format(y) - 1
     n_x, n_y = len(x), len(y)
     M, X, Y, X2, Y2 = [np.zeros((n_x + 1, n_y + 1))] * 5
@@ -254,7 +259,18 @@ def Smith_Waterman(x, y, e, d, beta):
     return (1/beta) * np.log(max(1, X2[n_x, n_y], Y2[n_x, n_y], M[n_x, n_y]))
 
 
-def get_LA_K2(X, e, d, beta, smith=False):
+def get_LA_K(X, e=11, d=1, beta=0.5, smith=0, eig=1):
+    """
+    Compute Local Alignment Kernel
+    :param X: pd.DataFrame, features
+    :param e: int, gap open penalty
+    :param d: int, gap extend penalty
+    :param beta: float, parameter for k_beta(x, y)
+    :param smith: 0 or 1, whether to use or not Smith algorithm
+    :param eig: 0 or 1, whether to substract the smallest negative eigenvalue from K after computation (to make K p.s.d)
+    If eig=0 then empirical kernel method is used.
+    :return: np.array, kernel
+    """
     n = X.shape[0]
     K = np.zeros((n, n))
     for i, x in tqdm(enumerate(X.loc[:, 'seq']), total=n, desc='Building kernel'):
@@ -262,29 +278,28 @@ def get_LA_K2(X, e, d, beta, smith=False):
             if j >= i:
                 K[i, j] = Smith_Waterman(x, y, e, d, beta) if smith else affine_align(x, y, e, d, beta)
                 K[j, i] = K[i, j]
-    for i, x in tqdm(enumerate(X.loc[:, 'seq']), total=n, desc='Normalizing kernel'):
-        for j, y in enumerate(X.loc[:, 'seq']):
-            if j > i:
-                K[i, j] = K[i, j] / np.sqrt(K[i, i] * K[j, j])
-                K[j, i] = K[i, j]
-    return K
+    K1 = deepcopy(K)
+    if eig == 1:
+        vp = np.min(np.real(eigs(K1)[0]))
+        s = vp if vp < 0 else 0
+        np.fill_diagonal(K1, np.diag(K1) - s * np.ones(n))
+    else:
+        for i in tqdm(range(K1.shape[0]), desc='Empirical kernel'):
+            for j in range(i, n):
+                K1[i, j] = np.dot(K[i], K[j])
+                K1[j, i] = K1[i, j]
+    return K1
 
 
-def get_LA_K(X, e=11, d=2):
-    n = X.shape[0]
-    K = np.zeros((n, n))
-    for i, x in tqdm(enumerate(X.loc[:, 'seq']), total=n, desc='Building kernel'):
-        query = StripedSmithWaterman(x, gap_open_penalty=e, gap_extend_penalty=d)
-        for j, y in enumerate(X.loc[:, 'seq']):
-            if j >= i:
-                K[i, j] = np.log(query(y)['optimal_alignment_score'])
-                K[j, i] = K[i, j]
-    return K
-
-#################################################### Select method #####################################################
+###################################################### Normalize #######################################################
 
 
 def normalize_K(K):
+    """
+    Normalize kernel
+    :param K: np.array
+    :return: np.array
+    """
     if K[0, 0] == 1:
         print('Kernel already normalized')
     else:
@@ -297,12 +312,15 @@ def normalize_K(K):
     return K
 
 
+#################################################### Select method #####################################################
+
+
 def select_method(X, method):
     """
     Given method and param dictionary, compute kernel
     :param X: pd.DataFrame, features
     :param method: string, method to apply for building the kernel
-    :return:
+    :return: np.array, K
     """
     if method[:2] == 'SP':
         k = int(method[2:])
@@ -315,8 +333,9 @@ def select_method(X, method):
         K = get_mismatch_K(X, k, m)
     elif method[:2] == 'LA':
         m = method.split('_')
-        e, d = int(m[1][1:]), int(m[2][1:])
-        K = get_LA_K(X, e, d)
+        e, d, beta = [float(m[i][1:]) for i in range(1, 4)]
+        smith, eig = int(m[4][5:]), int(m[5][3:])
+        K = get_LA_K(X, e, d, beta, smith, eig)
     elif method[:3] == 'WDS':
         m = method.split('_')
         d, S = int(m[1][1:]), int(m[2][1:])

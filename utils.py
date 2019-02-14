@@ -9,6 +9,7 @@ import SVM
 import operator
 from itertools import product
 
+
 def get_train(k):
     """
     Load training data set specified by k. Replace 0s by -1s in target and insert a flag k.
@@ -220,6 +221,12 @@ def export_predictions(svms, X_tests):
 
 
 def sort_accuracies_k(algo='C_SVM', k=1):
+    """
+    Sort best accuracies obtained for each kernel methods (through cross validation) along with constants.
+    :param algo: string, 'C_SVM' or 'SVM2'
+    :param k: int, which data set to consider (default 1)
+    :return: pd.DataFrame, methods+accuracies+Cs
+    """
     k_ = 'k'+str(k)
     val_scores = {}
     C_opts = {}
@@ -242,20 +249,37 @@ def sort_accuracies_k(algo='C_SVM', k=1):
     return p
 
 
-def sort_accuracies(algo='C_SVM'):
-    for k in range(1, 4):
-        if k == 1:
-            p = sort_accuracies_k(algo, k)
+def sort_accuracies(algo='C_SVM', k=3):
+    """
+    Sort accuracies for several data sets (if k=3, then all data sets will be considered)
+    :param algo: string, 'C_SVM' or 'SVM2'
+    :param k: int, which data set to consider (default 1)
+    :return: pd.DataFrame, methods+accuracies+Cs
+    """
+    for k_ in range(1, k+1):
+        if k_ == 1:
+            p = sort_accuracies_k(algo, k_)
         else:
-            p = pd.concat((p, sort_accuracies_k(algo, k)), axis=1)
+            p = pd.concat((p, sort_accuracies_k(algo, k_)), axis=1)
     return p
 
 
-
+# Default constants C for gridsearch (C_SVM)
 Cs = np.sort([i*10**j for (i,j) in product(range(1,10), range(-3,1))])
 
 
 def run_expe(methods, k=3, maxiter=500, kfolds=5, Cs_1=Cs, Cs_2=Cs, Cs_3=Cs):
+    """
+    Run cross validations on k data sets with constants Cs
+    :param methods: list of strings, list of methods
+    :param k: int, number of data sets to consider (default 3, all)
+    :param maxiter: int, maximum iterations for gradient descent
+    :param kfolds: int, number of folds for c.v.
+    :param Cs_1: list or np.array, constants for data set 1
+    :param Cs_2: list or np.array, constants for data set 2
+    :param Cs_3: list or np.array, constants for data set 3
+    :return: None
+    """
     for m in methods:
         X_train, y_train, X_val, y_val, X_test, K, ID = get_training_datas(method=m, all=True, replace=False)
         for k_ in range(1, k+1):
