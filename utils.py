@@ -50,26 +50,13 @@ def train_test_split_k(X, y, p):
         - y_train: pd.DataFrame, training labels
         - y_val: pd.DataFrame, testing labels
     """
-    n = X.shape[0]
     idx_0, idx_1 = np.where(y.loc[:, "Bound"] == -1)[0], np.where(y.loc[:, "Bound"] == 1)[0]
     n0, n1 = len(idx_0), len(idx_1)
-    idx_tr0 = np.random.choice(idx_0, int(p * n0), replace=False)
-    idx_tr1 = np.random.choice(idx_1, int(p * n1), replace=False)
-    idx_te0 = list(set(idx_0) - set(idx_tr0))
-    idx_te1 = list(set(idx_1) - set(idx_tr1))
-    idx_tr = np.random.permutation(np.concatenate((idx_tr0, idx_tr1)))
-    idx_te = np.random.permutation(np.concatenate((idx_te0, idx_te1)))
-    n_tr, n_te = len(idx_tr), len(idx_te)
+    idx_tr0, idx_tr1 = idx_0[:int(p * n0)+1], idx_1[:int(p * n1)+1]
+    idx_te0, idx_te1 = list(set(idx_0) - set(idx_tr0)), list(set(idx_1) - set(idx_tr1))
+    idx_tr, idx_te = np.concatenate((idx_tr0, idx_tr1)), np.concatenate((idx_te0, idx_te1))
     X_train, y_train = X.iloc[idx_tr, :], y.iloc[idx_tr, :]
     X_val, y_val = X.iloc[idx_te, :], y.iloc[idx_te, :]
-    print('Number of training samples: {} ({:0.2f}%), testing samples: {} ({:0.2f}%)'.
-          format(n_tr, n_tr / n * 100, n_te, n_te / n * 100))
-    print('Count train : -1 ({:0.4f}%), 1 ({:0.4f}%)'.
-          format(np.count_nonzero(y_train.loc[:, "Bound"] == -1) / n_tr * 100,
-                 np.count_nonzero(y_train.loc[:, "Bound"] == 1) / n_tr * 100))
-    print('Count val : -1 ({:0.4f}%), 1 ({:0.4f}%)\n'.
-          format(np.count_nonzero(y_val.loc[:, "Bound"] == -1) / n_te * 100,
-                 np.count_nonzero(y_val.loc[:, "Bound"] == 1) / n_te * 100))
     return X_train, y_train, X_val, y_val
 
 
@@ -144,9 +131,6 @@ def get_training_datas(method, all=True, replace=False):
     file = 'training_data_'+method+'.pkl'
     if not all:
         X_train, y_train, X_val, y_val, X_test = train_test_split()
-        X_train, X_val = X_train.sample(frac=1), X_val.sample(frac=1)
-        idx_train, idx_val = X_train.index, X_val.index
-        y_train, y_val = y_train.iloc[idx_train, :], y_val.iloc[idx_val, :]
         X_test.loc[:, 'Id'] = -(X_test.loc[:, 'Id'] + 1)
         X = pd.concat((X_train, X_val, X_test), axis=0)
         ID = X.loc[:, 'Id']
@@ -156,9 +140,6 @@ def get_training_datas(method, all=True, replace=False):
             X_train, y_train, X_val, y_val, X_test, K, ID = pkl.load(open(os.path.join('./Data', file), 'rb'))
         else:
             X_train, y_train, X_val, y_val, X_test = train_test_split()
-            X_train, X_val = X_train.sample(frac=1), X_val.sample(frac=1)
-            idx_train, idx_val = X_train.index, X_val.index
-            y_train, y_val = y_train.iloc[idx_train, :], y_val.iloc[idx_val, :]
             X_test.loc[:, 'Id'] = -(X_test.loc[:, 'Id']+1)
             X = pd.concat((X_train, X_val, X_test), axis=0)
             ID = np.array(X.loc[:, 'Id'])
@@ -209,7 +190,7 @@ def export_predictions(svms, X_tests):
     for k, svm in enumerate(svms):
         X_test = X_tests[k]
         pred_test = svm.predict(X_test).astype(int)
-        if k==0:
+        if k == 0:
             y_test = pd.DataFrame({'Id': X_test.Id, 'Bound': pred_test})
         else:
             y_test = pd.concat((y_test, pd.DataFrame({'Id': X_test.Id, 'Bound': pred_test})))
