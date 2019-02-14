@@ -5,6 +5,7 @@ import warnings
 import kernels as km
 import pickle as pkl
 import datetime
+import SVM
 import operator
 from itertools import product
 
@@ -244,7 +245,7 @@ def run_expe(methods, k=3, maxiter=500, kfolds=5, Cs_1=Cs, Cs_2=Cs, Cs_3=Cs):
     for m in methods:
         X_train, y_train, X_val, y_val, X_test, K, ID = get_training_datas(method=m, all=True, replace=False)
         for k_ in range(1, k+1):
-            exec("X_train_"+str(k_)+", y_train_"+str(k_)+", X_val_"+str(k_)+", y_val_"+str(k_)+", X_test_"+str(k_)+", K_"+str(k_)+", id_"+str(k_)+" = utils.select_k(k_, X_train, y_train, X_val, y_val, X_test, K, ID)")
+            exec("X_train_"+str(k_)+", y_train_"+str(k_)+", X_val_"+str(k_)+", y_val_"+str(k_)+", X_test_"+str(k_)+", K_"+str(k_)+", id_"+str(k_)+" = select_k(k_, X_train, y_train, X_val, y_val, X_test, K, ID)")
             exec("data_"+str(k_)+" = [X_train_"+str(k_)+", y_train_"+str(k_)+", X_val_"+str(k_)+", y_val_"+str(k_)+"]")
             pickleName = 'cv_C_SVM_'+m+'_k'+str(k_)+'_max_iter'+str(maxiter)+'_solver_BFGS_full.pkl'
             exec("C_opt_"+str(k_)+", _, _, _, _ = SVM.cv(Cs=Cs_"+str(k_)+", data=data_"+str(k_)+", kfolds=kfolds, pickleName=pickleName, K=K, ID=ID, maxiter=maxiter, method='BFGS')")
