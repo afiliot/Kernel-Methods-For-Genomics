@@ -150,7 +150,7 @@ def cv(Cs, data, kfolds=5, pickleName='cv_C_SVM', **kwargs):
         s_tr, s_te = [], []
         for C in Cs:
             svm = C_SVM(C=C, print_callbacks=False, **kwargs)
-            svm.fit(X_train, y_train, X_val, y_val)
+            svm.fit(X_train, y_train)
             pred_tr = svm.predict(X_train)
             score_tr = svm.score(pred_tr, y_train)
             pred_te = svm.predict(X_val)
