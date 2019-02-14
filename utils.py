@@ -235,7 +235,11 @@ def sort_accuracies(algo='C_SVM', k=1):
     for i in range(len(sorted_val)):
         key = sorted_val[i][0]
         sorted_C[key] = C_opts[key]
-    return sorted_val, sorted_C
+    u = sorted_val, sorted_C
+    p = pd.DataFrame({'Kernel Method': [u[0][i][0] for i in range(len(u[0]))],
+                      'Val accuracy': [u[0][i][1] for i in range(len(u[0]))],
+                      'Constant C': [np.round(i, 4) for i in u[1].values()]})
+    return p
 
 
 Cs = np.sort([i*10**j for (i,j) in product(range(1,10), range(-3,1))])
