@@ -224,9 +224,9 @@ def sort_accuracies_k(algo='C_SVM', k=1):
     val_scores = {}
     C_opts = {}
     warnings.filterwarnings('ignore')
-    for file in os.listdir('./Data'):
+    for file in os.listdir('./Data/CrossVals/'):
         if algo in file and k_ in file:
-            pred = pkl.load(open(os.path.join('./Data', file), 'rb'))
+            pred = pkl.load(open(os.path.join('./Data/CrossVals/', file), 'rb'))
             file = file.split(k_)[0][5:-1]
             val_scores[file] = np.max(pred[3])
             C_opts[file] = pred[4]
