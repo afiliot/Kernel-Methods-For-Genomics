@@ -219,7 +219,7 @@ def export_predictions(svms, X_tests):
     return y_test
 
 
-def sort_accuracies(algo='C_SVM', k=1):
+def sort_accuracies_k(algo='C_SVM', k=1):
     k_ = 'k'+str(k)
     val_scores = {}
     C_opts = {}
@@ -236,10 +236,20 @@ def sort_accuracies(algo='C_SVM', k=1):
         key = sorted_val[i][0]
         sorted_C[key] = C_opts[key]
     u = sorted_val, sorted_C
-    p = pd.DataFrame({'Kernel Method': [u[0][i][0] for i in range(len(u[0]))],
-                      'Val accuracy': [u[0][i][1] for i in range(len(u[0]))],
-                      'Constant C': [np.round(i, 4) for i in u[1].values()]})
+    p = pd.DataFrame({'Kernel Method - k='+str(k): [u[0][i][0] for i in range(len(u[0]))],
+                      'Val accuracy - k='+str(k): [u[0][i][1] for i in range(len(u[0]))],
+                      'Constant C - k='+str(k): [np.round(i, 4) for i in u[1].values()]})
     return p
+
+
+def sort_accuracies(algo='C_SVM'):
+    for k in range(1, 4):
+        if k == 1:
+            p = sort_accuracies_k(algo, k)
+        else:
+            p = pd.concat((p, sort_accuracies_k(algo, k)), axis=1)
+    return p
+
 
 
 Cs = np.sort([i*10**j for (i,j) in product(range(1,10), range(-3,1))])
