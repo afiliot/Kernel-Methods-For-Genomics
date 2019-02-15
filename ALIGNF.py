@@ -85,11 +85,12 @@ def aligned_kernel(X_train, y_train, ID, kernels):
     Km = np.sum(u[i] * kernels[i] for i in range(len(kernels)))
     return Km
 
+
 def aligned_kernels(methods):
     data, data1, data2, data3, kernels, ID = utils.get_datas_alignf(methods)
     aligned_k = []
     for k, data in zip(range(1, 4), [data1, data2, data3]):
-        X, y, _, _, _ = data
+        X, y, _, _, = data
         Km = aligned_kernel(X, y, ID, kernels)
         aligned_k.append(Km)
     return data, data1, data2, data3, aligned_k, ID
