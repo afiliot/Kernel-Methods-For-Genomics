@@ -1,6 +1,12 @@
 import utils
 import SVM
+import ALIGNF
+import numpy as np
+from itertools import product
+import kernels as ke
 
+check_alignf = False
+check_method = True
 
 if __name__ == '__main__':
     # Build kernels
@@ -10,7 +16,24 @@ if __name__ == '__main__':
     # - WDS_dx,sy : Weight degree kernel with x = int (d), y = int (s)
     # - MMxy: mismatch kernel with x = int (k) and y = int (m)
     # - LA_ex_dy_bz_smithX_eigY with x = int (e), y = int (d), z = float (beta), X = 0/1 (smith), Y = 0/1 (eig)
-    X_train, y_train, X_val, y_val, X_test, K, ID = utils.get_training_datas(method='MM61', replace=False)
+
+    if check_alignf:
+        methods = ['SP6', 'WD5', 'WD4', 'SP5']
+        data, data1, data2, data3, kernels, ID = ALIGNF.aligned_kernels(methods)
+        svm = SVM.C_SVM(kernels[0], ID)
+        X_train_1, y_train_1, X_val_1, y_val_1 = data1
+        svm.fit(X_train_1, y_train_1)
+        Cs = np.sort([i * 10 ** j for (i, j) in product(range(1, 10), range(-5, 2))])
+        SVM.cv(Cs=Cs, data=data1,
+               kfolds=5, pickleName='cv_C_SVM_f1', K=kernels[0], ID=ID)
+
+    elif check_method:
+        methods = ['MM51']
+        utils.run_expe(methods)
+
+
+
+
 
 
 

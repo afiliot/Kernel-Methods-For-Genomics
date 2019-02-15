@@ -12,19 +12,17 @@ class C_SVM():
     """
     Implementation of C-SVM algorithm
     """
-    def __init__(self, K, ID, C=10, eps=1e-5, tol=1e-4, print_callbacks=True):
+    def __init__(self, K, ID, C=10, eps=1e-5, print_callbacks=True):
         """
         :param K: np.array, kernel (computed on train+val+test data sets)
         :param ID: np.array, Ids (for ordering)
         :param C: float, regularization constant
         :param eps: float, threshold determining whether alpha is a support vector or not
-        :param tol: float, stopping criteria for gradient descent
         :param print_callbacks: Bool, print evolution of gradient descent (suggested)
         """
         self.K = K
         self.ID = ID
         self.C = C
-        self.tol = tol
         self.eps = eps
         self.print_callbacks = print_callbacks
         self.Nfeval = 1
@@ -71,12 +69,12 @@ class C_SVM():
         :return:
         """
         self.Id_fit = np.array(X.loc[:, 'Id'])
-        self.idx_fit = np.where(np.in1d(self.ID, self.Id_fit))[0]
+        self.idx_fit = np.array([np.where(self.ID == self.Id_fit[i])[0] for i in range(len(self.Id_fit))]).squeeze()
         self.K_fit = self.K[self.idx_fit][:, self.idx_fit]
         self.y_fit, self.X_fit, = np.array(y.loc[:, 'Bound']), X
         n = self.K_fit.shape[0]
         # initialization
-        a0 = np.zeros(n)
+        a0 = np.random.randn(n)
         # Gradient descent
         bounds_down = [-self.C if self.y_fit[i] <= 0 else 0 for i in range(n)]
         bounds_up = [+self.C if self.y_fit[i] >= 0 else 0 for i in range(n)]
@@ -95,8 +93,7 @@ class C_SVM():
         """
         # Align prediction IDs with index in kernel K
         self.Id_pred = np.array(X.loc[:, 'Id'])
-        self.idx_pred = np.where(np.in1d(self.ID, self.Id_pred))[0]
-        self.idx_tot = np.unique(np.concatenate((self.idx_fit, self.idx_pred)))
+        self.idx_pred = np.array([np.where(self.ID == self.Id_pred[i])[0] for i in range(len(self.Id_pred))]).squeeze()
         pred = []
         for i in self.idx_pred:
             pred.append(np.sign(np.dot(self.sv, self.K[self.idx_sv, i].squeeze())))
@@ -109,10 +106,7 @@ class C_SVM():
         :param y: np.array or pd.DataFrame, true labels
         :return: float, percentage of correct predictions
         """
-        if not isinstance(y, np.ndarray):
-            label = np.array(y.loc[:, 'Bound'])
-        else:
-            label = y
+        label = np.array(y.loc[:, 'Bound']) if not isinstance(y, np.ndarray) else y
         assert 0 not in np.unique(label), "Labels must be -1 or 1, not 0 or 1"
         return np.mean(pred == label)
 
@@ -134,8 +128,9 @@ def cv(Cs, data, kfolds=5, pickleName='cv_C_SVM', **kwargs):
     scores_tr = np.zeros((kfolds, len(Cs)))
     scores_te = np.zeros((kfolds, len(Cs)))
     X_tr, y_tr, X_te, y_te = data
-    X_train_ = pd.concat((X_tr, X_te)).reset_index(drop=True)
-    y_train_ = pd.concat((y_tr, y_te)).reset_index(drop=True)
+    X_train_ = pd.concat((X_tr, X_te)).reset_index(drop=True).sample(frac=1)
+    y_train_ = pd.concat((y_tr, y_te)).reset_index(drop=True).iloc[X_train_.index]
+    X_train_, y_train_ = X_train_.reset_index(drop=True), y_train_.reset_index(drop=True)
     n = X_train_.shape[0]
     p = int(n // kfolds)
     for k in tqdm(range(kfolds)):
@@ -143,10 +138,8 @@ def cv(Cs, data, kfolds=5, pickleName='cv_C_SVM', **kwargs):
         q = p * (k + 1) + n % kfolds if k == kfolds - 1 else p * (k + 1)
         idx_val = np.arange(p * k, q)
         idx_train = np.setdiff1d(np.arange(n), idx_val)
-        X_train = X_train_.iloc[idx_train, :]
-        y_train = y_train_.iloc[idx_train, :]
-        X_val = X_train_.iloc[idx_val, :]
-        y_val = y_train_.iloc[idx_val, :]
+        X_train, y_train = X_train_.iloc[idx_train, :], y_train_.iloc[idx_train, :]
+        X_val, y_val = X_train_.iloc[idx_val, :], y_train_.iloc[idx_val, :]
         s_tr, s_te = [], []
         for C in Cs:
             svm = C_SVM(C=C, print_callbacks=False, **kwargs)
@@ -157,7 +150,7 @@ def cv(Cs, data, kfolds=5, pickleName='cv_C_SVM', **kwargs):
             score_te = svm.score(pred_te, y_val)
             s_tr.append(score_tr)
             s_te.append(score_te)
-            print('C={}, best accuracy on train ({:0.4f}) and val ({:0.4f})'.format(C, score_tr, score_te))
+            print('C={}, train_acc={:0.4f}, val_acc={:0.4f}'.format(C, score_tr, score_te))
         scores_tr[k], scores_te[k] = s_tr, s_te
     mean_scores_tr, mean_scores_te = np.mean(scores_tr, axis=0), np.mean(scores_te, axis=0)
     C_opt = Cs[np.argmax(mean_scores_te)]

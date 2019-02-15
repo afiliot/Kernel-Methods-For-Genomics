@@ -141,7 +141,6 @@ def get_training_datas(method, all=True, replace=False):
             K = km.select_method(X, method)
             file = 'training_data_'+method+'.pkl'
             pkl.dump([X_train, y_train, X_val, y_val, X_test, K, ID], open(os.path.join('./Data', file), 'wb'))
-        warnings.simplefilter('always')
     return X_train, y_train, X_val, y_val, X_test, K, ID
 
 

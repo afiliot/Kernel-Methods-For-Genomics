@@ -9,35 +9,38 @@ class ALIGNF():
         self.y = y.loc[:, 'Bound']
         self.Y = np.outer(self.y, self.y)
         self.ID = ID
+        self.kernels = kernels
         self.idx = np.where(np.in1d(self.ID, np.array(self.X.loc[:, 'Id'])))[0]
-        self.kernels = [K[self.idx][:, self.idx] for K in kernels]
-        self.p = len(kernels)
+        self.kernels_fit = [K[self.idx][:, self.idx] for K in self.kernels]
+        self.c_kernels_fit = self.center(self.kernels_fit)
+        self.p = len(self.kernels)
         self.Nfeval = 1
-        self.c_kernels = self.center()
         self.a = self.get_a().T
         self.M = self.get_M()
+        self.u_star = self.get_v()
 
-    def center(self):
+    def center(self, kernels):
         print('Centering kernels...')
         c_kernels = []
-        for K in self.kernels:
+        for K in kernels:
             c_kernels.append(center_K(K))
         return c_kernels
 
     def get_a(self):
         print('Computing vector a...')
         a = np.zeros(self.p)
-        for i, Kc in enumerate(self.c_kernels):
+        for i, Kc in enumerate(self.c_kernels_fit):
             a[i] = (Kc*self.Y).sum()
         return a
 
     def get_M(self):
         print('Computing matrix M...')
         M = np.zeros((self.p, self.p))
-        for i, Kc_i in enumerate(self.c_kernels):
-            for j, Kc_j in enumerate(self.c_kernels):
-                if i>=j:
+        for i, Kc_i in enumerate(self.c_kernels_fit):
+            for j, Kc_j in enumerate(self.c_kernels_fit):
+                if j >= i :
                     M[i, j] = (Kc_i*Kc_j).sum()
+                    M[j, i] = M[i, j]
         return M
 
     def loss(self, v):
@@ -66,32 +69,25 @@ class ALIGNF():
     def get_v(self):
         print('Gradient descent...')
         # initialization
-        v0 = np.zeros(self.p)
+        v0 = np.random.randn(self.p)
         # Gradient descent
         bounds = [[0, float(np.inf)]] * self.p
         res = fmin_l_bfgs_b(self.loss, v0, fprime=self.jac, bounds=bounds, pgtol=1e-6, callback=self.callbackF)
         v_star = res[0]
         return v_star / np.linalg.norm(v_star)
 
-    def get_K(self):
-        u_star = self.get_v()
-        return u_star
-
-
-def aligned_kernel(X_train, y_train, ID, kernels):
-    alignf = ALIGNF(X_train, y_train, ID, kernels)
-    u = alignf.get_K()
-    print('Alignment vector : ', u)
-    Km = np.sum(u[i] * kernels[i] for i in range(len(kernels)))
-    return Km
+    def get_aligned_kernel(self):
+        print('Alignment vector : ', self.u_star, '\n-------------------------------------------------------------')
+        Km = sum(self.u_star[i] * K for i, K in enumerate(self.kernels))
+        return Km
 
 
 def aligned_kernels(methods):
     data, data1, data2, data3, kernels, ID = utils.get_datas_alignf(methods)
     aligned_k = []
-    for k, data in zip(range(1, 4), [data1, data2, data3]):
-        X, y, _, _, = data
-        Km = aligned_kernel(X, y, ID, kernels)
+    for k, d in zip(range(3), [data1, data2, data3]):
+        X, y, _, _, = d
+        Km = ALIGNF(X, y, ID, kernels).get_aligned_kernel()
         aligned_k.append(Km)
     return data, data1, data2, data3, aligned_k, ID
 

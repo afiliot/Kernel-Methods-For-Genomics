@@ -304,6 +304,7 @@ def center_K(K):
     B = np.eye(n) - np.ones((n, n))/n
     return multi_dot([B, K, B])
 
+
 def normalize_K(K):
     """
     Normalize kernel
