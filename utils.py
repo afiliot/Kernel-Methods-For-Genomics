@@ -130,7 +130,6 @@ def get_training_datas(method, all=True, replace=False):
         X_test.loc[:, 'Id'] = -(X_test.loc[:, 'Id'] + 1)
         X = pd.concat((X_train, X_val, X_test), axis=0)
         ID = X.loc[:, 'Id']
-        return X_train, y_train, X_val, y_val, X_test, ID
     else:
         if trainInRepo(file) and not replace:
             X_train, y_train, X_val, y_val, X_test, K, ID = pkl.load(open(os.path.join('./Data', file), 'rb'))
@@ -143,7 +142,7 @@ def get_training_datas(method, all=True, replace=False):
             file = 'training_data_'+method+'.pkl'
             pkl.dump([X_train, y_train, X_val, y_val, X_test, K, ID], open(os.path.join('./Data', file), 'wb'))
         warnings.simplefilter('always')
-        return X_train, y_train, X_val, y_val, X_test, K, ID
+    return X_train, y_train, X_val, y_val, X_test, K, ID
 
 
 def select_k(k, X_train, y_train, X_val, y_val, X_test, K, ID):
@@ -236,6 +235,21 @@ def sort_accuracies(algo='C_SVM', k=3):
             p = pd.concat((p, sort_accuracies_k(algo, k_)), axis=1)
     return p
 
+
+def get_datas_alignf(methods):
+    X_train, y_train, X_val, y_val, X_test, K, ID = get_training_datas(method=methods[0], replace=False)
+    X_train_1, y_train_1, X_val_1, y_val_1, X_test_1, _, _ = select_k(1, X_train, y_train, X_val, y_val, X_test, K, ID)
+    X_train_2, y_train_2, X_val_2, y_val_2, X_test_2, _, _ = select_k(2, X_train, y_train, X_val, y_val, X_test, K, ID)
+    X_train_3, y_train_3, X_val_3, y_val_3, X_test_3, _, _ = select_k(3, X_train, y_train, X_val, y_val, X_test, K, ID)
+    data = [X_train, y_train, X_val, y_val, X_test]
+    data1 = [X_train_1, y_train_1, X_val_1, y_val_1, X_test_1]
+    data2 = [X_train_2, y_train_2, X_val_2, y_val_2, X_test_2]
+    data3 = [X_train_3, y_train_3, X_val_3, y_val_3, X_test_3]
+    kernels = []
+    for m in methods:
+        _, _, _, _, _, K, _ = get_training_datas(method=m, replace=False)
+        kernels.append(K)
+    return data, data1, data2, data3, kernels, ID
 
 # Default constants C for gridsearch (C_SVM)
 Cs = np.sort([i*10**j for (i,j) in product(range(1,10), range(-3,1))])

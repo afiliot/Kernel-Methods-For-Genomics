@@ -1,8 +1,9 @@
 import numpy as np
-from tqdm import tqdm_notebook as tqdm
+from tqdm import tqdm as tqdm
 from itertools import product
 from copy import deepcopy
 from scipy.sparse.linalg import eigs
+from numpy.linalg import multi_dot
 ################################################### Spectrum Kernel ####################################################
 
 
@@ -40,7 +41,7 @@ def get_spectrum_K(X, k):
             if j >= i:
                 K[i, j] = np.dot(phi_u[i], phi_u[j])
                 K[j, i] = K[i, j]
-    K = normalize_K(K)
+    K = K
     return K
 
 
@@ -202,7 +203,6 @@ def get_mismatch_K(X, k, m):
             if j >= i:
                 K[i, j] = np.dot(phi_km_x[i], phi_km_x[j])
                 K[j, i] = K[i, j]
-    K = normalize_K(K)
     return K
 
 
@@ -288,11 +288,21 @@ def get_LA_K(X, e=11, d=1, beta=0.5, smith=0, eig=1):
             for j in range(i, n):
                 K1[i, j] = np.dot(K[i], K[j])
                 K1[j, i] = K1[i, j]
-    return K1
+    return K
 
 
 ###################################################### Normalize #######################################################
 
+
+def center_K(K):
+    """
+    Normalize kernel
+    :param K: np.array
+    :return: np.array
+    """
+    n = K.shape[0]
+    B = np.eye(n) - np.ones((n, n))/n
+    return multi_dot([B, K, B])
 
 def normalize_K(K):
     """
@@ -310,6 +320,7 @@ def normalize_K(K):
                 K[j, i] = K[i, j]
         np.fill_diagonal(K, np.ones(n))
     return K
+
 
 
 #################################################### Select method #####################################################
