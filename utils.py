@@ -238,13 +238,13 @@ def sort_accuracies(algo='C_SVM', k=3):
 
 def get_datas_alignf(methods):
     X_train, y_train, X_val, y_val, X_test, K, ID = get_training_datas(method=methods[0], replace=False)
-    X_train_1, y_train_1, X_val_1, y_val_1, X_test_1, _, _ = select_k(1, X_train, y_train, X_val, y_val, X_test, K, ID)
-    X_train_2, y_train_2, X_val_2, y_val_2, X_test_2, _, _ = select_k(2, X_train, y_train, X_val, y_val, X_test, K, ID)
-    X_train_3, y_train_3, X_val_3, y_val_3, X_test_3, _, _ = select_k(3, X_train, y_train, X_val, y_val, X_test, K, ID)
+    X_train_1, y_train_1, X_val_1, y_val_1, _, _, _ = select_k(1, X_train, y_train, X_val, y_val, X_test, K, ID)
+    X_train_2, y_train_2, X_val_2, y_val_2, _, _, _ = select_k(2, X_train, y_train, X_val, y_val, X_test, K, ID)
+    X_train_3, y_train_3, X_val_3, y_val_3, _, _, _ = select_k(3, X_train, y_train, X_val, y_val, X_test, K, ID)
     data = [X_train, y_train, X_val, y_val, X_test]
-    data1 = [X_train_1, y_train_1, X_val_1, y_val_1, X_test_1]
-    data2 = [X_train_2, y_train_2, X_val_2, y_val_2, X_test_2]
-    data3 = [X_train_3, y_train_3, X_val_3, y_val_3, X_test_3]
+    data1 = [X_train_1, y_train_1, X_val_1, y_val_1]
+    data2 = [X_train_2, y_train_2, X_val_2, y_val_2]
+    data3 = [X_train_3, y_train_3, X_val_3, y_val_3]
     kernels = []
     for m in methods:
         _, _, _, _, _, K, _ = get_training_datas(method=m, replace=False)
