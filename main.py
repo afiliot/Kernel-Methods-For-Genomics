@@ -1,12 +1,15 @@
 import utils
 import SVM
 import ALIGNF
+import NLCKernels
 import numpy as np
 from itertools import product
 import kernels as ke
 
 check_alignf = False
-check_method = True
+check_NLCK = True
+check_method = False
+build_kernel = False
 
 if __name__ == '__main__':
     # Build kernels
@@ -30,6 +33,18 @@ if __name__ == '__main__':
     elif check_method:
         methods = ['MM51']
         utils.run_expe(methods)
+
+    elif build_kernel:
+        X_train, y_train, X_val, y_val, X_test, K, ID = utils.get_training_datas(method='WD10', replace=True)
+
+    elif check_NLCK:
+        methods = ['SP6', 'MM51', 'WD10'] #, 'WD4', 'SP5']
+        data, data1, data2, data3, kernels, ID = NLCKernels.aligned_kernels(methods, lbda=0.001, degree=4)
+        svm = SVM.C_SVM(kernels[0], ID)
+        X_train_1, y_train_1, X_val_1, y_val_1 = data1
+        Cs = np.sort([i * 10 ** j for (i, j) in product(range(1, 10), range(-5, 2))])
+        SVM.cv(Cs=Cs, data=data1, kfolds=5, pickleName='cv_C_SVM_f1', K=kernels[0], ID=ID)
+
 
 
 

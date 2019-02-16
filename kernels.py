@@ -4,6 +4,8 @@ from itertools import product
 from copy import deepcopy
 from scipy.sparse.linalg import eigs
 from numpy.linalg import multi_dot
+from numba import jit
+
 ################################################### Spectrum Kernel ####################################################
 
 
@@ -156,7 +158,7 @@ def get_WDShifts_K(X, d, S):
 ################################################ Mismatch (k,m) Kernel #################################################
 
 
-def get_phi_km(x, k, m, betas):
+def get_phi_km(x, k, m, betas, phi_km):
     """
     Compute feature vector of sequence x for Mismatch (k,m) Kernel
     :param x: string, DNA sequence
@@ -165,9 +167,7 @@ def get_phi_km(x, k, m, betas):
     :param betas: list, all combinations of k-mers drawn from 'A', 'C', 'G', 'T'
     :return: np.array, feature vector of x
     """
-    x = format(x)
-    phi_km = np.zeros(len(betas))
-    for i in range(len(x) - k + 1):
+    for i in range(101 - k + 1):
         kmer = x[i:i + k]
         for i, b in enumerate(betas):
             phi_km[i] += (np.sum(kmer != b) <= m)
@@ -180,7 +180,7 @@ def format(x):
     :param x: string, DNA sequence
     :return: np.array, array of ints with 'A':1, 'C':2, 'G':3, 'T':4
     """
-    return np.array(list(x.replace('A', '1').replace('C', '2').replace('G', '3').replace('T', '4')), dtype=int)
+    return np.array(list(x.replace('A', '1').replace('C', '2').replace('G', '3').replace('T', '4')), dtype=np.int64)
 
 
 def get_mismatch_K(X, k, m):
@@ -193,10 +193,12 @@ def get_mismatch_K(X, k, m):
     """
     n = X.shape[0]
     K = np.zeros((n, n))
-    betas = [format(''.join(c)) for c in product('ACGT', repeat=k)]
+    betas = np.array([format(''.join(c)) for c in product('ACGT', repeat=k)])
     phi_km_x = []
+    phi_0 = np.zeros(len(betas))
     for i, x in tqdm(enumerate(X.loc[:, 'seq']), total=n, desc='Computing feature vectors'):
-        phi_km_x.append(get_phi_km(x, k, m, betas))
+        x = format(x)
+        phi_km_x.append(get_phi_km(x, k, m, betas, phi_0))
     phi_km_x = np.array(phi_km_x)
     for i, x in tqdm(enumerate(X.loc[:, 'seq']), total=n, desc='Building kernel'):
         for j, y in enumerate(X.loc[:, 'seq']):
@@ -314,10 +316,13 @@ def normalize_K(K):
     if K[0, 0] == 1:
         print('Kernel already normalized')
     else:
+        print('Normalizing kernel...')
         n = K.shape[0]
-        for i in tqdm(range(n), 'Normalizing kernel'):
+        diag = np.sqrt(np.diag(K))
+        for i in range(n):
+            d = diag[i]
             for j in range(i+1, n):
-                K[i, j] = K[i, j] / np.sqrt(K[i, i] * K[j, j])
+                K[i, j] /= (d * diag[j])
                 K[j, i] = K[i, j]
         np.fill_diagonal(K, np.ones(n))
     return K
