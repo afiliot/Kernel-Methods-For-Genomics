@@ -3,6 +3,7 @@ from cvxopt import matrix, spmatrix, solvers
 import utils
 solvers.options['show_progress'] = False
 import kernels
+from kernels import normalize_K
 
 class NLCK():
 
@@ -14,6 +15,7 @@ class NLCK():
         self.kernels = kernels
         self.idx = np.where(np.in1d(self.ID, np.array(self.X.loc[:, 'Id'])))[0]
         self.kernels_fit = [K[self.idx][:, self.idx] for K in self.kernels]
+        self.kernels_fit = [normalize_K(K) for K in self.kernels_fit]
         self.p = len(self.kernels_fit)
         self.lbda = lbda
         self.eps = eps
