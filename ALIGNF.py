@@ -1,4 +1,4 @@
-from kernels import center_K
+from kernels import center_K, normalize_K
 import numpy as np
 from scipy.optimize import fmin_l_bfgs_b
 import utils
@@ -12,6 +12,7 @@ class ALIGNF():
         self.kernels = kernels
         self.idx = np.where(np.in1d(self.ID, np.array(self.X.loc[:, 'Id'])))[0]
         self.kernels_fit = [K[self.idx][:, self.idx] for K in self.kernels]
+        self.kernels_fit = [normalize_K(K) for K in self.kernels_fit]
         self.c_kernels_fit = self.center(self.kernels_fit)
         self.p = len(self.kernels)
         self.Nfeval = 1
@@ -23,7 +24,7 @@ class ALIGNF():
         print('Centering kernels...')
         c_kernels = []
         for K in kernels:
-            c_kernels.append(center_K(K))
+            c_kernels.append(normalize_K(center_K(K)))
         return c_kernels
 
     def get_a(self):
@@ -78,7 +79,7 @@ class ALIGNF():
 
     def get_aligned_kernel(self):
         print('Alignment vector : ', self.u_star, '\n-------------------------------------------------------------')
-        Km = np.sum(self.kernels * self.u_star[:, None, None], axis=0)
+        Km = np.sum((self.kernels * self.u_star[:, None, None]), axis=0)
         return Km
 
 
