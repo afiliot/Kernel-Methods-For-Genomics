@@ -2,8 +2,12 @@ from kernels import center_K, normalize_K
 import numpy as np
 from scipy.optimize import fmin_l_bfgs_b
 import utils
+import SVM
 
 class ALIGNF():
+    """
+    Implementation of https://cs.nyu.edu/~mohri/pub/align.pdf
+    """
     def __init__(self, X, y, ID, kernels):
         self.X = X
         self.y = y.loc[:, 'Bound']
@@ -91,4 +95,34 @@ def aligned_kernels(methods):
         aligned_k.append(Km)
     return data, data1, data2, data3, aligned_k, ID
 
+
+def export_predictions(data, data1, data2, data3, K, ID, C_opts):
+    X_train, y_train, X_val, y_val, X_test = data
+    X_train_1, y_train_1, X_val_1, y_val_1 = data1
+    X_train_2, y_train_2, X_val_2, y_val_2 = data2
+    X_train_3, y_train_3, X_val_3, y_val_3 = data3
+    _, _, _, _, X_test_1, _, _ = utils.select_k(1, X_train, y_train, X_val, y_val, X_test, K[0], ID)
+    _, _, _, _, X_test_2, _, _ = utils.select_k(2, X_train, y_train, X_val, y_val, X_test, K[1], ID)
+    _, _, _, _, X_test_3, _, _ = utils.select_k(3, X_train, y_train, X_val, y_val, X_test, K[2], ID)
+    C_opt_1, C_opt_2, C_opt_3 = C_opts
+    svm_1 = SVM.C_SVM(K[0], ID, C=C_opt_1, print_callbacks=False)
+    res = svm_1.fit(X_train_1, y_train_1)
+    pred_tr_1 = svm_1.predict(X_train_1)
+    print('Accuracy on train set: {:0.4f}'.format(svm_1.score(pred_tr_1, y_train_1)))
+    pred_val_1 = svm_1.predict(X_val_1)
+    print('Accuracy on val set: {:0.4f}'.format(svm_1.score(pred_val_1, y_val_1)))
+    svm_2 = SVM.C_SVM(K[1], ID, C=C_opt_2, print_callbacks=False)
+    res = svm_2.fit(X_train_2, y_train_2)
+    pred_tr_2 = svm_2.predict(X_train_2)
+    print('Accuracy on train set: {:0.4f}'.format(svm_2.score(pred_tr_2, y_train_2)))
+    pred_val_2 = svm_2.predict(X_val_2)
+    print('Accuracy on val set: {:0.4f}'.format(svm_2.score(pred_val_2, y_val_2)))
+    svm_3 = SVM.C_SVM(K[2], ID, C=C_opt_3, print_callbacks=False)
+    res = svm_3.fit(X_train_3, y_train_3)
+    pred_tr_3 = svm_3.predict(X_train_3)
+    print('Accuracy on train set: {:0.4f}'.format(svm_3.score(pred_tr_3, y_train_3)))
+    pred_val_3 = svm_3.predict(X_val_3)
+    print('Accuracy on val set: {:0.4f}'.format(svm_3.score(pred_val_3, y_val_3)))
+    y_pred_test = utils.export_predictions([svm_1, svm_2, svm_3], [X_test_1, X_test_2, X_test_3])
+    return y_pred_test
 

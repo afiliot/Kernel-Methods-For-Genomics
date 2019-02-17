@@ -3,7 +3,9 @@ import numpy as np
 from tqdm import tqdm_notebook as tqdm
 import os
 import pickle as pkl
+import utils
 import warnings
+import kernels
 from scipy.optimize import fmin_l_bfgs_b
 warnings.filterwarnings('ignore')
 
@@ -158,3 +160,33 @@ def cv(Cs, data, kfolds=5, pickleName='cv_C_SVM', **kwargs):
     pkl.dump([scores_tr, scores_te, mean_scores_tr, mean_scores_te, C_opt],
              open(os.path.join('./Data/CrossVals/', pickleName), 'wb'))
     return C_opt, scores_tr, scores_te, mean_scores_tr, mean_scores_te
+
+
+def export_predictions(method, C_opts):
+    X_train, y_train, X_val, y_val, X_test, K, ID = utils.get_training_datas(method=method, all=True, replace=False)
+    K = kernels.normalize_K(K)  # Do nothing if already normalized
+    X_train_1, y_train_1, X_val_1, y_val_1, X_test_1 = utils.select_k(1, X_train, y_train, X_val, y_val, X_test, K[0], ID)
+    X_train_2, y_train_2, X_val_2, y_val_2, X_test_2 = utils.select_k(2, X_train, y_train, X_val, y_val, X_test, K[1], ID)
+    X_train_3, y_train_3, X_val_3, y_val_3, X_test_3 = utils.select_k(3, X_train, y_train, X_val, y_val, X_test, K[2], ID)
+    C_opt_1, C_opt_2, C_opt_3 = C_opts
+    svm_1 = C_SVM(K, ID, C=C_opt_1, print_callbacks=False)
+    res = svm_1.fit(X_train_1, y_train_1)
+    pred_tr_1 = svm_1.predict(X_train_1)
+    print('Accuracy on train set: {:0.4f}'.format(svm_1.score(pred_tr_1, y_train_1)))
+    pred_val_1 = svm_1.predict(X_val_1)
+    print('Accuracy on val set: {:0.4f}'.format(svm_1.score(pred_val_1, y_val_1)))
+    svm_2 = C_SVM(K, ID, C=C_opt_2, print_callbacks=False)
+    res = svm_2.fit(X_train_2, y_train_2)
+    pred_tr_2 = svm_2.predict(X_train_2)
+    print('Accuracy on train set: {:0.4f}'.format(svm_2.score(pred_tr_2, y_train_2)))
+    pred_val_2 = svm_2.predict(X_val_2)
+    print('Accuracy on val set: {:0.4f}'.format(svm_2.score(pred_val_2, y_val_2)))
+    svm_3 = C_SVM(K, ID, C=C_opt_3, print_callbacks=False)
+    res = svm_3.fit(X_train_3, y_train_3)
+    pred_tr_3 = svm_3.predict(X_train_3)
+    print('Accuracy on train set: {:0.4f}'.format(svm_3.score(pred_tr_3, y_train_3)))
+    pred_val_3 = svm_3.predict(X_val_3)
+    print('Accuracy on val set: {:0.4f}'.format(svm_3.score(pred_val_3, y_val_3)))
+    y_pred_test = utils.export_predictions([svm_1, svm_2, svm_3], [X_test_1, X_test_2, X_test_3])
+    return y_pred_test
+
