@@ -78,7 +78,7 @@ class ALIGNF():
 
     def get_aligned_kernel(self):
         print('Alignment vector : ', self.u_star, '\n-------------------------------------------------------------')
-        Km = sum(self.u_star[i] * K for i, K in enumerate(self.kernels))
+        Km = np.sum(self.kernels * self.u_star[:, None, None], axis=0)
         return Km
 
 
