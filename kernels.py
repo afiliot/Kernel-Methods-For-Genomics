@@ -158,7 +158,7 @@ def get_WDShifts_K(X, d, S):
 ################################################ Mismatch (k,m) Kernel #################################################
 
 
-def get_phi_km(x, k, m, betas, phi_km):
+def get_phi_km(x, k, m, betas):
     """
     Compute feature vector of sequence x for Mismatch (k,m) Kernel
     :param x: string, DNA sequence
@@ -167,11 +167,16 @@ def get_phi_km(x, k, m, betas, phi_km):
     :param betas: list, all combinations of k-mers drawn from 'A', 'C', 'G', 'T'
     :return: np.array, feature vector of x
     """
+    phi_km = np.zeros(len(betas))
     for i in range(101 - k + 1):
         kmer = x[i:i + k]
         for i, b in enumerate(betas):
             phi_km[i] += (np.sum(kmer != b) <= m)
     return phi_km
+
+
+def letter_to_num(x):
+    return x.replace('A', '1').replace('C', '2').replace('G', '3').replace('T', '4')
 
 
 def format(x):
@@ -180,7 +185,7 @@ def format(x):
     :param x: string, DNA sequence
     :return: np.array, array of ints with 'A':1, 'C':2, 'G':3, 'T':4
     """
-    return np.array(list(x.replace('A', '1').replace('C', '2').replace('G', '3').replace('T', '4')), dtype=np.int64)
+    return np.array(list(letter_to_num(x)))
 
 
 def get_mismatch_K(X, k, m):
@@ -194,17 +199,16 @@ def get_mismatch_K(X, k, m):
     n = X.shape[0]
     K = np.zeros((n, n))
     betas = np.array([format(''.join(c)) for c in product('ACGT', repeat=k)])
-    phi_km_x = []
-    phi_0 = np.zeros(len(betas))
+    phi_km_x = np.zeros((n, len(betas)))
     for i, x in tqdm(enumerate(X.loc[:, 'seq']), total=n, desc='Computing feature vectors'):
         x = format(x)
-        phi_km_x.append(get_phi_km(x, k, m, betas, phi_0))
-    phi_km_x = np.array(phi_km_x)
+        phi_km_x[i] = get_phi_km(x, k, m, betas)
     for i, x in tqdm(enumerate(X.loc[:, 'seq']), total=n, desc='Building kernel'):
         for j, y in enumerate(X.loc[:, 'seq']):
             if j >= i:
                 K[i, j] = np.dot(phi_km_x[i], phi_km_x[j])
                 K[j, i] = K[i, j]
+    K = normalize_K(K)
     return K
 
 
