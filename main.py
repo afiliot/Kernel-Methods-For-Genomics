@@ -24,11 +24,11 @@ if __name__ == '__main__':
 
     elif check_method:
         method = 'SP6'
+        algo = 'KRR'
+        solver = None
         data, data1, data2, data3, K, ID = utils.get_all_data([method])
-        svm = C_SVM(K, ID, solver='BFGS')
-        X_train_1, y_train_1, X_val_1, y_val_1, X_test_1 = data1
         Cs = np.sort([i * 10 ** j for (i, j) in product(range(1, 10), range(-5, 2))])
-        utils.cross_validation(Ps=Cs, data=data1, algo='KRR', kfolds=3, pickleName='cv_C_SVM_f1', K=K, ID=ID)
+        utils.cross_validation(Ps=Cs, data=data1, algo='KRR', solver=solver, kfolds=3, pickleName='cv_C_SVM_f1', K=K, ID=ID)
 
     elif check_alignf:
         methods = ['SP6', 'WD5', 'WD4', 'SP5']

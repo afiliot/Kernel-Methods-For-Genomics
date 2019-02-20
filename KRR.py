@@ -2,7 +2,7 @@ import numpy as np
 
 
 class KRR():
-    def __init__(self, K, ID, eps=1e-5, lbda=0.1):
+    def __init__(self, K, ID, eps=1e-5, lbda=0.1, solver=None):
         """
         kernel specifies the type of kernel to use
         lamb specifies the regularization parameter
@@ -11,6 +11,7 @@ class KRR():
         self.ID = ID
         self.eps = eps
         self.lbda = lbda
+        self.solver = solver
 
     def fit(self, X, y):
         self.Id_fit = np.array(X.loc[:, 'Id'])

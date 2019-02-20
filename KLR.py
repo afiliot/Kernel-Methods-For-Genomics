@@ -6,7 +6,7 @@ import pickle as pkl
 import pandas as pd
 
 class KLR():
-    def __init__(self, K, ID,eps=1e-5, lbda=0.1, tol=1e-5, maxiter=50, print_callbacks=True):
+    def __init__(self, K, ID,eps=1e-5, lbda=0.1, tol=1e-5, maxiter=50, solver=None, print_callbacks=True):
         """
         kernel specifies the type of kernel to use
         lamb specifies the regularization parameter
@@ -17,6 +17,7 @@ class KLR():
         self.lbda = lbda
         self.tol = tol
         self.maxiter = maxiter
+        self.solver = solver
         self.print_callbacks = print_callbacks
         self.Nfeval = 1
 
