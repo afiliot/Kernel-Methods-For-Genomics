@@ -301,6 +301,9 @@ def get_LA_K(X, e=11, d=1, beta=0.5, smith=0, eig=1):
 
 
 def rec(func):
+    """
+    method for handling recursion memory
+    """
     memory = {}
     def recd(*args):
         key = '-'.join('[%s]' % arg for arg in args)
@@ -312,6 +315,13 @@ def rec(func):
 
 @rec
 def B_k(lbda, k, x, y):
+    """
+    Recursively compute B_k
+    :param lbda: float
+    :param k: int, length of k-mers
+    :param x: string, DNA sequence
+    :param y: string, DNA sequence
+    """
     if k == 0:
         return 1
     n_x, n_y = len(x), len(y)
@@ -327,6 +337,14 @@ def B_k(lbda, k, x, y):
 
 @rec
 def K_k(lbda, k, x, y):
+    """
+    Recursively compute K_k
+    :param lbda: float
+    :param k: int, length of k-mers
+    :param x: string, DNA sequence
+    :param y: string, DNA sequence
+    :return K(x, y)
+    """
     if k == 0:
         return 1
     n_x, n_y = len(x), len(y)
@@ -339,7 +357,15 @@ def K_k(lbda, k, x, y):
             + (lbda**2) * sum(B_k(lbda, k-1, sub_x, y[:j]) for j in range(n_y) if y[j] == a)
            )
 
+
 def get_substring_K(X, lbda, k):
+    """
+    Compute Substring Kernel (lbda, k)
+    :param X: pd.DataFrame, features
+    :param lbda: float
+    :param k: int, length of k-mers
+    :return: np.array, kernel
+    """
     n = X.shape[0]
     K = np.zeros((n, n))
     for i, x in tqdm(enumerate(X.loc[:, 'seq']), total=n, desc='Building kernel'):
@@ -351,9 +377,7 @@ def get_substring_K(X, lbda, k):
     return K
 
 
-
 ###################################################### Normalize #######################################################
-
 
 def center_K(K):
     """
@@ -385,8 +409,6 @@ def normalize_K(K):
                 K[j, i] = K[i, j]
         np.fill_diagonal(K, np.ones(n))
     return K
-
-
 
 #################################################### Select method #####################################################
 

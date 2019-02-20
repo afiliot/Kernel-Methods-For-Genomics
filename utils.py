@@ -5,9 +5,11 @@ import warnings
 import kernels as km
 import pickle as pkl
 import datetime
-import SVM
-import KLR
-import KRR
+import utils
+from tqdm import tqdm
+from SVM import C_SVM
+from KLR import KLR
+from KRR import KRR
 import operator
 from itertools import product
 
@@ -237,7 +239,12 @@ def sort_accuracies(algo='C_SVM', k=3):
     return p
 
 
-def get_datas_alignf(methods):
+def get_all_data(methods):
+    """
+    Return all the necessary data for training and running ALIGNF algorithm.
+    :param methods: list of strings, kernel methods
+    :return: list of data
+    """
     X_train, y_train, X_val, y_val, X_test, K, ID = get_training_datas(method=methods[0], replace=False)
     X_train_1, y_train_1, X_val_1, y_val_1, _, _, _ = select_k(1, X_train, y_train, X_val, y_val, X_test, K, ID)
     X_train_2, y_train_2, X_val_2, y_val_2, _, _, _ = select_k(2, X_train, y_train, X_val, y_val, X_test, K, ID)
@@ -252,34 +259,97 @@ def get_datas_alignf(methods):
         kernels.append(K)
     return data, data1, data2, data3, kernels, ID
 
-# Default constants C for gridsearch (C_SVM)
-Ps = np.sort([i*10**j for (i,j) in product(range(1,10), range(-5,1))])
+
+def export_predictions(method, algo, P_opts):
+    """
+    Export predictions for submission
+    :param method: string, which kernel method to use
+    :param algo: string, choose between CSVM, KLR or KRR
+    :param P_opts: list, optimal values of constants for each data set (depending on the algorithm)
+    :return: np.array, predictions
+    """
+    data, data1, data2, data3, K, ID = get_all_data([method])
+    X_train_1, y_train_1, X_val_1, y_val_1, X_test_1 = data1
+    X_train_2, y_train_2, X_val_2, y_val_2, X_test_2 = data2
+    X_train_3, y_train_3, X_val_3, y_val_3, X_test_3 = data3
+    P_opt_1, P_opt_2, P_opt_3 = P_opts
+    if algo == 'CSVM':
+        alg_1 = C_SVM(K=K, ID=ID, C=P_opt_1, print_callbacks=False)
+        alg_2 = C_SVM(K=K, ID=ID, C=P_opt_2, print_callbacks=False)
+        alg_3 = C_SVM(K=K, ID=ID, C=P_opt_3, print_callbacks=False)
+    elif algo == 'KRR':
+        alg_1 = KRR(K=K, ID=ID, lbda=P_opt_1)
+        alg_2 = KRR(K=K, ID=ID, lbda=P_opt_2)
+        alg_3 = KRR(K=K, ID=ID, lbda=P_opt_3)
+    else:
+        NotImplementedError('Please choose between "CSVM", "KRR" or "KLR"')
+    alg_fit = []
+    for alg, data in zip([alg_1, alg_2, alg_3], [data1, data2, data3]):
+        X_train, y_train, X_val, y_val, X_test = data
+        alg.fit(X_train, y_train)
+        alg_fit.append(alg)
+        pred_tr = alg.predict(X_train)
+        print('Accuracy on train set: {:0.4f}'.format(alg.score(pred_tr, y_train)))
+        pred_val = alg.predict(X_val)
+        print('Accuracy on val set: {:0.4f}'.format(alg.score(pred_val, y_val_1)))
+    y_pred_test = utils.export_predictions(alg_fit, [X_test_1, X_test_2, X_test_3])
+    return y_pred_test
 
 
-def run_expe(methods, algo='C_SVM', k=3, kfolds=5, Ps_1=Ps, Ps_2=Ps, Ps_3=Ps):
+def cross_validation(Ps, data, algo, kfolds=5, pickleName='cv_C_SVM', **kwargs):
     """
-    Run cross validations on k data sets with constants Cs
-    :param methods: list of strings, list of methods
-    :param k: int, number of data sets to consider (default 3, all)
-    :param kfolds: int, number of folds for c.v.
-    :param Cs_1: list or np.array, constants for data set 1
-    :param Cs_2: list or np.array, constants for data set 2
-    :param Cs_3: list or np.array, constants for data set 3
-    :return: None
+    Cross-validation implementation for C_SVM
+    :param Ps: list or np.array, list of constants to loop on
+    :param data: list, X_train + y_train + X_val + y_val
+    :param algo: string, choose between CSVM, KLR, KRR
+    :param kfolds: int, number of folds used for CV
+    :param pickleName: string
+    :param kwargs: arguments used for C_SVM (tol, etc...)
+    :return: list: - p_opt: float, optimal constant (best average score)
+                   - scores_tr: np.array, scores on train set for each constant C (and each fold)
+                   - scores_te: np.array, scores on val set for each constant C (and each fold)
+                   - mean_scores_tr: np.array, average scores on train set for each constant C
+                   - mean_scores_te: np.array, average scores on val set for each constant C
     """
-    P = {}
-    for m in methods:
-        P[m] = {}
-        X_train, y_train, X_val, y_val, X_test, K, ID = get_training_datas(method=m, all=True, replace=False)
-        for k_ in range(1, k+1):
-            exec("X_train_"+str(k_)+", y_train_"+str(k_)+", X_val_"+str(k_)+", y_val_"+str(k_)+", X_test_"+str(k_)+", K_"+str(k_)+", id_"+str(k_)+" = select_k(k_, X_train, y_train, X_val, y_val, X_test, K, ID)")
-            exec("data_"+str(k_)+" = [X_train_"+str(k_)+", y_train_"+str(k_)+", X_val_"+str(k_)+", y_val_"+str(k_)+"]")
-            pickleName = 'cv_'+algo+'_'+m+'_k'+str(k_)+'.pkl'
-            if algo == 'C_SVM':
-                exec("p_opt_"+str(k_)+", _, _, _, _ = SVM.cv(Cs=Ps_"+str(k_)+", data=data_"+str(k_)+", kfolds=kfolds, pickleName=pickleName, K=K, ID=ID)")
+    scores_tr = np.zeros((kfolds, len(Ps)))
+    scores_te = np.zeros((kfolds, len(Ps)))
+    X_tr, y_tr, X_te, y_te = data
+    X_train_ = pd.concat((X_tr, X_te)).reset_index(drop=True).sample(frac=1)
+    y_train_ = pd.concat((y_tr, y_te)).reset_index(drop=True).iloc[X_train_.index]
+    X_train_, y_train_ = X_train_.reset_index(drop=True), y_train_.reset_index(drop=True)
+    n = X_train_.shape[0]
+    p = int(n // kfolds)
+    for k in tqdm(range(kfolds)):
+        print('Fold {}'.format(k+1))
+        q = p * (k + 1) + n % kfolds if k == kfolds - 1 else p * (k + 1)
+        idx_val = np.arange(p * k, q)
+        idx_train = np.setdiff1d(np.arange(n), idx_val)
+        X_train, y_train = X_train_.iloc[idx_train, :], y_train_.iloc[idx_train, :]
+        X_val, y_val = X_train_.iloc[idx_val, :], y_train_.iloc[idx_val, :]
+        s_tr, s_te = [], []
+        for P in Ps:
+            if algo == 'CSVM':
+                alg = C_SVM(C=P, print_callbacks=False, **kwargs)
             elif algo == 'KLR':
-                exec("p_opt_" + str(k_) + ", _, _, _, _ = KLR.cv(Ls=Ps_" + str(k_) + ", data=data_" + str(k_) + ", kfolds=kfolds, pickleName=pickleName, K=K, ID=ID)")
+                alg = KLR(lbda=P)
             elif algo == 'KRR':
-                exec("p_opt_" + str(k_) + ", _, _, _, _ = KRR.cv(Ls=Ps_" + str(k_) + ", data=data_" + str(k_) + ", kfolds=kfolds, pickleName=pickleName, K=K, ID=ID)")
-            exec("C[m][k_] = p_opt_"+str(k_))
-    return P
+                alg = KRR(lbda=P)
+            else:
+                NotImplementedError('Please choose between "CSVM", "KRR" or "KLR"')
+            alg.fit(X_train, y_train)
+            pred_tr = alg.predict(X_train)
+            score_tr = alg.score(pred_tr, y_train)
+            pred_te = alg.predict(X_val)
+            score_te = alg.score(pred_te, y_val)
+            s_tr.append(score_tr)
+            s_te.append(score_te)
+            print('Constant={}, train_acc={:0.4f}, val_acc={:0.4f}'.format(P, score_tr, score_te))
+        scores_tr[k], scores_te[k] = s_tr, s_te
+    mean_scores_tr, mean_scores_te = np.mean(scores_tr, axis=0), np.mean(scores_te, axis=0)
+    p_opt = Ps[np.argmax(mean_scores_te)]
+    print('Best constant={}, val_acc={:0.4f}'.format(p_opt, np.max(mean_scores_te)))
+    pkl.dump([scores_tr, scores_te, mean_scores_tr, mean_scores_te, p_opt],
+             open(os.path.join('./Data/CrossVals/', pickleName), 'wb'))
+    return p_opt, scores_tr, scores_te, mean_scores_tr, mean_scores_te
+
+

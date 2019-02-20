@@ -22,6 +22,7 @@ class C_SVM():
         :param ID: np.array, Ids (for ordering)
         :param C: float, regularization constant
         :param eps: float, threshold determining whether alpha is a support vector or not
+        :param solver: int, choose between 'CVX' or 'BFGS'
         :param print_callbacks: Bool, print evolution of gradient descent (suggested)
         """
         self.K = K
@@ -131,82 +132,3 @@ class C_SVM():
         label = np.array(y.loc[:, 'Bound']) if not isinstance(y, np.ndarray) else y
         assert 0 not in np.unique(label), "Labels must be -1 or 1, not 0 or 1"
         return np.mean(pred == label)
-
-
-def cv(Cs, data, kfolds=5, pickleName='cv_C_SVM', **kwargs):
-    """
-    Cross-validation implementation for C_SVM
-    :param Cs: list or np.array, list of constant C to loop on for gridsearch
-    :param data: list, X_train + y_train + X_val + y_val
-    :param kfolds: int, number of folds used for CV
-    :param pickleName: string
-    :param kwargs: arguments used for C_SVM (tol, etc...)
-    :return: list: - C_opt: float, optimal constant (best average score)
-                   - scores_tr: np.array, scores on train set for each constant C (and each fold)
-                   - scores_te: np.array, scores on val set for each constant C (and each fold)
-                   - mean_scores_tr: np.array, average scores on train set for each constant C
-                   - mean_scores_te: np.array, average scores on val set for each constant C
-    """
-    scores_tr = np.zeros((kfolds, len(Cs)))
-    scores_te = np.zeros((kfolds, len(Cs)))
-    X_tr, y_tr, X_te, y_te = data
-    X_train_ = pd.concat((X_tr, X_te)).reset_index(drop=True).sample(frac=1)
-    y_train_ = pd.concat((y_tr, y_te)).reset_index(drop=True).iloc[X_train_.index]
-    X_train_, y_train_ = X_train_.reset_index(drop=True), y_train_.reset_index(drop=True)
-    n = X_train_.shape[0]
-    p = int(n // kfolds)
-    for k in tqdm(range(kfolds)):
-        print('Fold {}'.format(k+1))
-        q = p * (k + 1) + n % kfolds if k == kfolds - 1 else p * (k + 1)
-        idx_val = np.arange(p * k, q)
-        idx_train = np.setdiff1d(np.arange(n), idx_val)
-        X_train, y_train = X_train_.iloc[idx_train, :], y_train_.iloc[idx_train, :]
-        X_val, y_val = X_train_.iloc[idx_val, :], y_train_.iloc[idx_val, :]
-        s_tr, s_te = [], []
-        for C in Cs:
-            svm = C_SVM(C=C, print_callbacks=False, **kwargs)
-            svm.fit(X_train, y_train)
-            pred_tr = svm.predict(X_train)
-            score_tr = svm.score(pred_tr, y_train)
-            pred_te = svm.predict(X_val)
-            score_te = svm.score(pred_te, y_val)
-            s_tr.append(score_tr)
-            s_te.append(score_te)
-            print('C={}, train_acc={:0.4f}, val_acc={:0.4f}'.format(C, score_tr, score_te))
-        scores_tr[k], scores_te[k] = s_tr, s_te
-    mean_scores_tr, mean_scores_te = np.mean(scores_tr, axis=0), np.mean(scores_te, axis=0)
-    C_opt = Cs[np.argmax(mean_scores_te)]
-    print('Best constant C: {}, accuracy on val {:0.4f}'.format(C_opt, np.max(mean_scores_te)))
-    pkl.dump([scores_tr, scores_te, mean_scores_tr, mean_scores_te, C_opt],
-             open(os.path.join('./Data/CrossVals/', pickleName), 'wb'))
-    return C_opt, scores_tr, scores_te, mean_scores_tr, mean_scores_te
-
-
-def export_predictions(method, C_opts):
-    X_train, y_train, X_val, y_val, X_test, K, ID = utils.get_training_datas(method=method, all=True, replace=False)
-    K = kernels.normalize_K(K)  # Do nothing if already normalized
-    X_train_1, y_train_1, X_val_1, y_val_1, X_test_1 = utils.select_k(1, X_train, y_train, X_val, y_val, X_test, K[0], ID)
-    X_train_2, y_train_2, X_val_2, y_val_2, X_test_2 = utils.select_k(2, X_train, y_train, X_val, y_val, X_test, K[1], ID)
-    X_train_3, y_train_3, X_val_3, y_val_3, X_test_3 = utils.select_k(3, X_train, y_train, X_val, y_val, X_test, K[2], ID)
-    C_opt_1, C_opt_2, C_opt_3 = C_opts
-    svm_1 = C_SVM(K, ID, C=C_opt_1, print_callbacks=False)
-    res = svm_1.fit(X_train_1, y_train_1)
-    pred_tr_1 = svm_1.predict(X_train_1)
-    print('Accuracy on train set: {:0.4f}'.format(svm_1.score(pred_tr_1, y_train_1)))
-    pred_val_1 = svm_1.predict(X_val_1)
-    print('Accuracy on val set: {:0.4f}'.format(svm_1.score(pred_val_1, y_val_1)))
-    svm_2 = C_SVM(K, ID, C=C_opt_2, print_callbacks=False)
-    res = svm_2.fit(X_train_2, y_train_2)
-    pred_tr_2 = svm_2.predict(X_train_2)
-    print('Accuracy on train set: {:0.4f}'.format(svm_2.score(pred_tr_2, y_train_2)))
-    pred_val_2 = svm_2.predict(X_val_2)
-    print('Accuracy on val set: {:0.4f}'.format(svm_2.score(pred_val_2, y_val_2)))
-    svm_3 = C_SVM(K, ID, C=C_opt_3, print_callbacks=False)
-    res = svm_3.fit(X_train_3, y_train_3)
-    pred_tr_3 = svm_3.predict(X_train_3)
-    print('Accuracy on train set: {:0.4f}'.format(svm_3.score(pred_tr_3, y_train_3)))
-    pred_val_3 = svm_3.predict(X_val_3)
-    print('Accuracy on val set: {:0.4f}'.format(svm_3.score(pred_val_3, y_val_3)))
-    y_pred_test = utils.export_predictions([svm_1, svm_2, svm_3], [X_test_1, X_test_2, X_test_3])
-    return y_pred_test
-
