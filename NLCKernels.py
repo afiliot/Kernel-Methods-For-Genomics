@@ -27,24 +27,16 @@ class NLCK():
         self.degree = degree
     
     def svm_step(self, u):
-
         r = np.arange(self.n)
         o = np.ones(self.n)
         z = np.zeros(self.n)
-
         K = 0.5 * np.sum((self.kernels_fit * u[:, None, None]), axis=0) ** self.degree
-
         P = matrix(K.astype(float), tc='d')
         q = matrix(-self.y, tc='d')
         G = spmatrix(np.r_[self.y, -self.y], np.r_[r, r + self.n], np.r_[r, r], tc='d')
         h = matrix(np.r_[o * self.C, z], tc='d')
-
-        # call the solver
         sol = solvers.qp(P, q, G, h)
-
-        # alpha
         a = np.ravel(sol['x'])
-
         return a
 
     def grad(self, u, alpha):
@@ -60,7 +52,7 @@ class NLCK():
         return u_s + u0
 
     def fit(self, u0=0, fnorm=1, n_iter=20, eta=1):
-        u = self.normalize(np.random.randn(self.p), u0, fnorm)
+        u = self.normalize(np.ones(self.p), u0, fnorm)
         score_prev = np.inf
         k = 0
         while score_prev > self.eps and k < n_iter:
