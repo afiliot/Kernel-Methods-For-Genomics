@@ -174,16 +174,16 @@ def select_k(k, X_train, y_train, X_val, y_val, X_test, K, ID):
     return X_train_, y_train_, X_val_, y_val_, X_test_, K_, id_k
 
 
-def export_predictions(svms, X_tests):
+def export_predictions(algos, X_tests):
     """
     Compute and export predictions on test set (0 or 1)
     :param svms: list, list of trained svms
     :param X_tests: list, list of testing pd.DataFrames
     :return: np.array, predictions
     """
-    for k, svm in enumerate(svms):
+    for k, alg in enumerate(algos):
         X_test = X_tests[k]
-        pred_test = svm.predict(X_test).astype(int)
+        pred_test = alg.predict(X_test).astype(int)
         if k == 0:
             y_test = pd.DataFrame({'Id': X_test.Id, 'Bound': pred_test})
         else:
@@ -266,7 +266,7 @@ def get_all_data(methods):
     return data, data1, data2, data3, kernels, ID
 
 
-def export_predictions(DATA, algos, P_opts):
+def predictions(DATA, algos, P_opts):
     """
     Export predictions for submission
     :param method: string, which kernel method to use
