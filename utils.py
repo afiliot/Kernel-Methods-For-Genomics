@@ -266,7 +266,7 @@ def get_all_data(methods):
     return data, data1, data2, data3, kernels, ID
 
 
-def export_predictions(method, algos, P_opts):
+def export_predictions(DATA, algos, P_opts):
     """
     Export predictions for submission
     :param method: string, which kernel method to use
@@ -274,11 +274,10 @@ def export_predictions(method, algos, P_opts):
     :param P_opts: list, optimal values of constants for each data set (depending on the algorithm)
     :return: np.array, predictions
     """
-    data, data1, data2, data3, K, ID = get_all_data([method])
+    data, data1, data2, data3, K, ID = DATA
     X_train_1, y_train_1, X_val_1, y_val_1, X_test_1 = data1
     X_train_2, y_train_2, X_val_2, y_val_2, X_test_2 = data2
     X_train_3, y_train_3, X_val_3, y_val_3, X_test_3 = data3
-    P_opt_1, P_opt_2, P_opt_3 = P_opts
     alg_init = []
     for p, algo in zip(P_opts, algos):
         if algo == 'CSVM':
