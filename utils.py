@@ -266,7 +266,7 @@ def get_all_data(methods):
     return data, data1, data2, data3, kernels, ID
 
 
-def export_predictions(method, algo, P_opts):
+def export_predictions(method, algos, P_opts):
     """
     Export predictions for submission
     :param method: string, which kernel method to use
@@ -279,26 +279,24 @@ def export_predictions(method, algo, P_opts):
     X_train_2, y_train_2, X_val_2, y_val_2, X_test_2 = data2
     X_train_3, y_train_3, X_val_3, y_val_3, X_test_3 = data3
     P_opt_1, P_opt_2, P_opt_3 = P_opts
-    if algo == 'CSVM':
-        alg_1 = C_SVM(K=K, ID=ID, C=P_opt_1, print_callbacks=False)
-        alg_2 = C_SVM(K=K, ID=ID, C=P_opt_2, print_callbacks=False)
-        alg_3 = C_SVM(K=K, ID=ID, C=P_opt_3, print_callbacks=False)
-    elif algo == 'KRR':
-        alg_1 = KRR(K=K, ID=ID, lbda=P_opt_1)
-        alg_2 = KRR(K=K, ID=ID, lbda=P_opt_2)
-        alg_3 = KRR(K=K, ID=ID, lbda=P_opt_3)
-    else:
-        NotImplementedError('Please choose between "CSVM", "KRR" or "KLR"')
-    alg_fit = []
-    for alg, data in zip([alg_1, alg_2, alg_3], [data1, data2, data3]):
+    alg_init = []
+    for p, algo in zip(P_opts, algos):
+        if algo == 'CSVM':
+            alg_init.append(C_SVM(K=K, ID=ID, C=p, print_callbacks=False))
+        elif algo == 'KRR':
+            alg_init.append(KRR(K=K, ID=ID, lbda=p))
+        else:
+            NotImplementedError('Please choose between "CSVM", "KRR" or "KLR"')
+    algo_fit = []
+    for algo, data in zip(alg_init, [data1, data2, data3]):
         X_train, y_train, X_val, y_val, X_test = data
-        alg.fit(X_train, y_train)
-        alg_fit.append(alg)
-        pred_tr = alg.predict(X_train)
-        print('Accuracy on train set: {:0.4f}'.format(alg.score(pred_tr, y_train)))
-        pred_val = alg.predict(X_val)
-        print('Accuracy on val set: {:0.4f}'.format(alg.score(pred_val, y_val_1)))
-    y_pred_test = utils.export_predictions(alg_fit, [X_test_1, X_test_2, X_test_3])
+        algo.fit(X_train, y_train)
+        algo_fit.append(algo)
+        pred_tr = algo.predict(X_train)
+        print('Accuracy on train set: {:0.4f}'.format(algo.score(pred_tr, y_train)))
+        pred_val = algo.predict(X_val)
+        print('Accuracy on val set: {:0.4f}'.format(algo.score(pred_val, y_val_1)))
+    y_pred_test = utils.export_predictions(algo_fit, [X_test_1, X_test_2, X_test_3])
     return y_pred_test
 
 
