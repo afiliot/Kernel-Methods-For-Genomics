@@ -1,20 +1,22 @@
 import pandas as pd
 import numpy as np
-from tqdm import tqdm_notebook as tqdm
+from tqdm import tqdm as tqdm
 import os
 import pickle as pkl
 import utils
-import warnings
 import kernels
 from scipy.optimize import fmin_l_bfgs_b
-warnings.filterwarnings('ignore')
+import cvxopt
+import cvxopt.solvers
+
+
 
 
 class C_SVM():
     """
     Implementation of C-SVM algorithm
     """
-    def __init__(self, K, ID, C=10, eps=1e-5, print_callbacks=True):
+    def __init__(self, K, ID, C=10, eps=1e-5, solver='CVX', print_callbacks=True):
         """
         :param K: np.array, kernel (computed on train+val+test data sets)
         :param ID: np.array, Ids (for ordering)
@@ -26,6 +28,7 @@ class C_SVM():
         self.ID = ID
         self.C = C
         self.eps = eps
+        self.solver = solver
         self.print_callbacks = print_callbacks
         self.Nfeval = 1
 
@@ -74,18 +77,35 @@ class C_SVM():
         self.idx_fit = np.array([np.where(self.ID == self.Id_fit[i])[0] for i in range(len(self.Id_fit))]).squeeze()
         self.K_fit = self.K[self.idx_fit][:, self.idx_fit]
         self.y_fit, self.X_fit, = np.array(y.loc[:, 'Bound']), X
-        n = self.K_fit.shape[0]
-        # initialization
-        a0 = np.random.randn(n)
-        # Gradient descent
-        bounds_down = [-self.C if self.y_fit[i] <= 0 else 0 for i in range(n)]
-        bounds_up = [+self.C if self.y_fit[i] >= 0 else 0 for i in range(n)]
-        bounds = [[bounds_down[i], bounds_up[i]] for i in range(n)]
-        res = fmin_l_bfgs_b(self.loss, a0, fprime=self.jac, bounds=bounds, callback=self.callbackF)
+        self.n = self.K_fit.shape[0]
+        if self.solver == 'BFGS':
+            # initialization
+            a0 = np.random.randn(self.n)
+            # Gradient descent
+            bounds_down = [-self.C if self.y_fit[i] <= 0 else 0 for i in range(self.n)]
+            bounds_up = [+self.C if self.y_fit[i] >= 0 else 0 for i in range(self.n)]
+            bounds = [[bounds_down[i], bounds_up[i]] for i in range(self.n)]
+            res = fmin_l_bfgs_b(self.loss, a0, fprime=self.jac, bounds=bounds, callback=self.callbackF)
+            self.a = res[0]
+        elif self.solver == 'CVX':
+            r = np.arange(self.n)
+            o = np.ones(self.n)
+            z = np.zeros(self.n)
+            P = cvxopt.matrix(0.5*self.K_fit.astype(float), tc='d')
+            q = cvxopt.matrix(-self.y_fit, tc='d')
+            G = cvxopt.spmatrix(np.r_[self.y_fit, -self.y_fit], np.r_[r, r + self.n], np.r_[r, r], tc='d')
+            h = cvxopt.matrix(np.r_[o * self.C, z], tc='d')
+            cvxopt.solvers.options['show_progress'] = False
+            sol = cvxopt.solvers.qp(P, q, G, h)
+            self.a = np.ravel(sol['x'])
         # Align support vectors index with index from fit set
-        self.idx_sv = np.where(np.abs(res[0]) > self.eps)
-        self.sv = res[0][self.idx_sv]
+        self.idx_sv = np.where(np.abs(self.a) > self.eps)
+        self.y_fit = self.y_fit[self.idx_sv]
+        self.a = self.a[self.idx_sv]
         self.idx_sv = self.idx_fit[self.idx_sv]
+        # Intercept
+        self.y_hat = np.array([np.dot(self.a, self.K[self.idx_sv, i]).squeeze() for i in self.idx_sv])
+        self.b = np.mean(self.y_fit - self.y_hat)
 
     def predict(self, X):
         """
@@ -98,7 +118,7 @@ class C_SVM():
         self.idx_pred = np.array([np.where(self.ID == self.Id_pred[i])[0] for i in range(len(self.Id_pred))]).squeeze()
         pred = []
         for i in self.idx_pred:
-            pred.append(np.sign(np.dot(self.sv, self.K[self.idx_sv, i].squeeze())))
+            pred.append(np.sign(np.dot(self.a, self.K[self.idx_sv, i].squeeze()) + self.b))
         return np.array(pred)
 
     def score(self, pred, y):

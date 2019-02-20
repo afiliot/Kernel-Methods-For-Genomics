@@ -185,7 +185,7 @@ def format(x):
     :param x: string, DNA sequence
     :return: np.array, array of ints with 'A':1, 'C':2, 'G':3, 'T':4
     """
-    return np.array(list(letter_to_num(x)))
+    return np.array(list(letter_to_num(x))).astype(int)
 
 
 def get_mismatch_K(X, k, m):
@@ -280,7 +280,7 @@ def get_LA_K(X, e=11, d=1, beta=0.5, smith=0, eig=1):
     n = X.shape[0]
     K = np.zeros((n, n))
     for i, x in tqdm(enumerate(X.loc[:, 'seq']), total=n, desc='Building kernel'):
-        for j, y in tqdm(enumerate(X.loc[:, 'seq']), total=n-i):
+        for j, y in enumerate(X.loc[:, 'seq']):
             if j >= i:
                 K[i, j] = Smith_Waterman(x, y, e, d, beta) if smith else affine_align(x, y, e, d, beta)
                 K[j, i] = K[i, j]
@@ -295,6 +295,61 @@ def get_LA_K(X, e=11, d=1, beta=0.5, smith=0, eig=1):
                 K1[i, j] = np.dot(K[i], K[j])
                 K1[j, i] = K1[i, j]
     return K
+
+
+#################################################### String Kernel #####################################################
+
+
+def rec(func):
+    memory = {}
+    def recd(*args):
+        key = '-'.join('[%s]' % arg for arg in args)
+        if key not in memory:
+            memory[key] = func(*args)
+        return memory[key]
+    return recd
+
+
+@rec
+def B_k(lbda, k, x, y):
+    if k == 0:
+        return 1
+    n_x, n_y = len(x), len(y)
+    if n_x < k or n_y < k:
+        return 0
+    sub_x, sub_y = x[:-1], y[:-1]
+    return (
+            lbda * B_k(lbda, k, sub_x, y)
+            + lbda * B_k(lbda, k, x, sub_y)
+            - (lbda**2) * B_k(lbda, k, sub_x, sub_y)
+            + ((lbda**2) * B_k(lbda, k-1, sub_x, sub_y) if x[-1] == y[-1] else 0)
+           )
+
+@rec
+def K_k(lbda, k, x, y):
+    if k == 0:
+        return 1
+    n_x, n_y = len(x), len(y)
+    if n_x < k or n_y < k:
+        return 0
+    sub_x = x[:-1]
+    a = x[-1]
+    return (
+            K_k(lbda, k, sub_x, y)
+            + (lbda**2) * sum(B_k(lbda, k-1, sub_x, y[:j]) for j in range(n_y) if y[j] == a)
+           )
+
+def get_substring_K(X, lbda, k):
+    n = X.shape[0]
+    K = np.zeros((n, n))
+    for i, x in tqdm(enumerate(X.loc[:, 'seq']), total=n, desc='Building kernel'):
+        for j, y in enumerate(X.loc[:, 'seq']):
+            print(j)
+            if j >= i:
+                K[i, j] = K_k(lbda, k, x, y)
+                K[j, i] = K[i, j]
+    return K
+
 
 
 ###################################################### Normalize #######################################################
@@ -361,4 +416,8 @@ def select_method(X, method):
         m = method.split('_')
         d, S = int(m[1][1:]), int(m[2][1:])
         K = get_WDShifts_K(X, d, S)
+    elif method[:2] == 'SS':
+        m = method.split('_')
+        lbda, k = float(m[1][1:]), int(m[2][1:])
+        K = get_substring_K(X, lbda, k)
     return K

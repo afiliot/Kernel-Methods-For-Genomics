@@ -6,6 +6,8 @@ import kernels as km
 import pickle as pkl
 import datetime
 import SVM
+import KLR
+import KRR
 import operator
 from itertools import product
 
@@ -251,10 +253,10 @@ def get_datas_alignf(methods):
     return data, data1, data2, data3, kernels, ID
 
 # Default constants C for gridsearch (C_SVM)
-Cs = np.sort([i*10**j for (i,j) in product(range(1,10), range(-3,1))])
+Ps = np.sort([i*10**j for (i,j) in product(range(1,10), range(-5,1))])
 
 
-def run_expe(methods, k=3, kfolds=5, Cs_1=Cs, Cs_2=Cs, Cs_3=Cs):
+def run_expe(methods, algo='C_SVM', k=3, kfolds=5, Ps_1=Ps, Ps_2=Ps, Ps_3=Ps):
     """
     Run cross validations on k data sets with constants Cs
     :param methods: list of strings, list of methods
@@ -265,14 +267,19 @@ def run_expe(methods, k=3, kfolds=5, Cs_1=Cs, Cs_2=Cs, Cs_3=Cs):
     :param Cs_3: list or np.array, constants for data set 3
     :return: None
     """
-    C = {}
+    P = {}
     for m in methods:
-        C[m] = {}
+        P[m] = {}
         X_train, y_train, X_val, y_val, X_test, K, ID = get_training_datas(method=m, all=True, replace=False)
         for k_ in range(1, k+1):
             exec("X_train_"+str(k_)+", y_train_"+str(k_)+", X_val_"+str(k_)+", y_val_"+str(k_)+", X_test_"+str(k_)+", K_"+str(k_)+", id_"+str(k_)+" = select_k(k_, X_train, y_train, X_val, y_val, X_test, K, ID)")
             exec("data_"+str(k_)+" = [X_train_"+str(k_)+", y_train_"+str(k_)+", X_val_"+str(k_)+", y_val_"+str(k_)+"]")
-            pickleName = 'cv_C_SVM_'+m+'_k'+str(k_)+'.pkl'
-            exec("C_opt_"+str(k_)+", _, _, _, _ = SVM.cv(Cs=Cs_"+str(k_)+", data=data_"+str(k_)+", kfolds=kfolds, pickleName=pickleName, K=K, ID=ID)")
-            exec("C[m][k_] = C_opt_"+str(k_))
-    return C
+            pickleName = 'cv_'+algo+'_'+m+'_k'+str(k_)+'.pkl'
+            if algo == 'C_SVM':
+                exec("p_opt_"+str(k_)+", _, _, _, _ = SVM.cv(Cs=Ps_"+str(k_)+", data=data_"+str(k_)+", kfolds=kfolds, pickleName=pickleName, K=K, ID=ID)")
+            elif algo == 'KLR':
+                exec("p_opt_" + str(k_) + ", _, _, _, _ = KLR.cv(Ls=Ps_" + str(k_) + ", data=data_" + str(k_) + ", kfolds=kfolds, pickleName=pickleName, K=K, ID=ID)")
+            elif algo == 'KRR':
+                exec("p_opt_" + str(k_) + ", _, _, _, _ = KRR.cv(Ls=Ps_" + str(k_) + ", data=data_" + str(k_) + ", kfolds=kfolds, pickleName=pickleName, K=K, ID=ID)")
+            exec("C[m][k_] = p_opt_"+str(k_))
+    return P
