@@ -275,11 +275,15 @@ def predictions(DATA, algos, P_opts):
     :return: np.array, predictions
     """
     data, data1, data2, data3, K, ID = DATA
+    if isinstance(K, list):
+        K_1, K_2, K_3 = K
+    else:
+        K_1 = K_2 = K_3 = K
     X_train_1, y_train_1, X_val_1, y_val_1, X_test_1 = data1
     X_train_2, y_train_2, X_val_2, y_val_2, X_test_2 = data2
     X_train_3, y_train_3, X_val_3, y_val_3, X_test_3 = data3
     alg_init = []
-    for p, algo in zip(P_opts, algos):
+    for p, algo, K in zip(P_opts, algos, [K_1, K_2, K_3]):
         if algo == 'CSVM':
             alg_init.append(C_SVM(K=K, ID=ID, C=p, print_callbacks=False))
         elif algo == 'KRR':
@@ -294,7 +298,7 @@ def predictions(DATA, algos, P_opts):
         pred_tr = algo.predict(X_train)
         print('Accuracy on train set: {:0.4f}'.format(algo.score(pred_tr, y_train)))
         pred_val = algo.predict(X_val)
-        print('Accuracy on val set: {:0.4f}'.format(algo.score(pred_val, y_val_1)))
+        print('Accuracy on val set: {:0.4f}'.format(algo.score(pred_val, y_val)))
     y_pred_test = utils.export_predictions(algo_fit, [X_test_1, X_test_2, X_test_3])
     return y_pred_test
 
