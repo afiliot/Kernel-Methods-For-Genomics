@@ -22,12 +22,32 @@ class NLCK():
         self.kernels_fit = [normalize_K(K) for K in self.kernels_fit]
         self.p = len(self.kernels_fit)
         self.lbda = lbda
+        self.C = 1 / (2 * self.lbda * self.n)
         self.eps = eps
         self.degree = degree
     
     def svm_step(self, u):
+        #K = np.sum((self.kernels_fit * u[:, None, None]), axis=0) ** self.degree
+        #return np.dot(np.linalg.inv(K + self.lbda * np.ones(self.n)), self.y)
+
+        r = np.arange(self.n)
+        o = np.ones(self.n)
+        z = np.zeros(self.n)
+
         K = np.sum((self.kernels_fit * u[:, None, None]), axis=0) ** self.degree
-        return np.dot(np.linalg.inv(K + self.lbda * np.ones(self.n)), self.y)
+
+        P = matrix(K.astype(float), tc='d')
+        q = matrix(-self.y, tc='d')
+        G = spmatrix(np.r_[self.y, -self.y], np.r_[r, r + self.n], np.r_[r, r], tc='d')
+        h = matrix(np.r_[o * self.C, z], tc='d')
+
+        # call the solver
+        sol = solvers.qp(P, q, G, h)
+
+        # alpha
+        a = np.ravel(sol['x'])
+
+        return a
 
     def grad(self, u, alpha):
         K_t = np.sum(self.kernels_fit * u[:, None, None], axis=0) ** (self.degree - 1)
