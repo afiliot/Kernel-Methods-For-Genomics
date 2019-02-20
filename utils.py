@@ -239,6 +239,11 @@ def sort_accuracies(algo='C_SVM', k=3):
     return p
 
 
+def load_kernel(method):
+    _, _, _, _, _, K, _ = get_training_datas(method=method, replace=False)
+    return K
+
+
 def get_all_data(methods):
     """
     Return all the necessary data for training and running ALIGNF algorithm.
@@ -246,17 +251,18 @@ def get_all_data(methods):
     :return: list of data
     """
     X_train, y_train, X_val, y_val, X_test, K, ID = get_training_datas(method=methods[0], replace=False)
-    X_train_1, y_train_1, X_val_1, y_val_1, _, _, _ = select_k(1, X_train, y_train, X_val, y_val, X_test, K, ID)
-    X_train_2, y_train_2, X_val_2, y_val_2, _, _, _ = select_k(2, X_train, y_train, X_val, y_val, X_test, K, ID)
-    X_train_3, y_train_3, X_val_3, y_val_3, _, _, _ = select_k(3, X_train, y_train, X_val, y_val, X_test, K, ID)
+    X_train_1, y_train_1, X_val_1, y_val_1, X_test_1, _, _ = select_k(1, X_train, y_train, X_val, y_val, X_test, K, ID)
+    X_train_2, y_train_2, X_val_2, y_val_2, X_test_2, _, _ = select_k(2, X_train, y_train, X_val, y_val, X_test, K, ID)
+    X_train_3, y_train_3, X_val_3, y_val_3, X_test_3, _, _ = select_k(3, X_train, y_train, X_val, y_val, X_test, K, ID)
     data = [X_train, y_train, X_val, y_val, X_test]
-    data1 = [X_train_1, y_train_1, X_val_1, y_val_1]
-    data2 = [X_train_2, y_train_2, X_val_2, y_val_2]
-    data3 = [X_train_3, y_train_3, X_val_3, y_val_3]
+    data1 = [X_train_1, y_train_1, X_val_1, y_val_1, X_test_1]
+    data2 = [X_train_2, y_train_2, X_val_2, y_val_2, X_test_2]
+    data3 = [X_train_3, y_train_3, X_val_3, y_val_3, X_test_3]
     kernels = []
     for m in methods:
-        _, _, _, _, _, K, _ = get_training_datas(method=m, replace=False)
-        kernels.append(K)
+        kernels.append(load_kernel(m))
+    if len(kernels) == 1:
+        kernels = kernels[0]
     return data, data1, data2, data3, kernels, ID
 
 
@@ -313,7 +319,7 @@ def cross_validation(Ps, data, algo, kfolds=5, pickleName='cv_C_SVM', **kwargs):
     """
     scores_tr = np.zeros((kfolds, len(Ps)))
     scores_te = np.zeros((kfolds, len(Ps)))
-    X_tr, y_tr, X_te, y_te = data
+    X_tr, y_tr, X_te, y_te, _ = data
     X_train_ = pd.concat((X_tr, X_te)).reset_index(drop=True).sample(frac=1)
     y_train_ = pd.concat((y_tr, y_te)).reset_index(drop=True).iloc[X_train_.index]
     X_train_, y_train_ = X_train_.reset_index(drop=True), y_train_.reset_index(drop=True)
@@ -331,9 +337,9 @@ def cross_validation(Ps, data, algo, kfolds=5, pickleName='cv_C_SVM', **kwargs):
             if algo == 'CSVM':
                 alg = C_SVM(C=P, print_callbacks=False, **kwargs)
             elif algo == 'KLR':
-                alg = KLR(lbda=P)
+                alg = KLR(lbda=P, print_callbacks=False, **kwargs)
             elif algo == 'KRR':
-                alg = KRR(lbda=P)
+                alg = KRR(lbda=P, **kwargs)
             else:
                 NotImplementedError('Please choose between "CSVM", "KRR" or "KLR"')
             alg.fit(X_train, y_train)

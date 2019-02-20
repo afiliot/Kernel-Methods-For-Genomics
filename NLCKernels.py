@@ -90,7 +90,7 @@ def aligned_kernels(methods, lbdas, degrees, **kwargs):
     data, data1, data2, data3, kernels, ID = utils.get_all_data(methods)
     aligned_k = []
     for d, l, data in zip(degrees, lbdas, [data1, data2, data3]):
-        X, y, _, _, = d
+        X, y, _, _,_ = data
         Km = NLCK(X, y, ID, kernels, lbda=l, eps=1e-9, degree=d).get_K(**kwargs)
         aligned_k.append(Km)
     return data, data1, data2, data3, aligned_k, ID

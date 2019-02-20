@@ -90,7 +90,7 @@ def aligned_kernels(methods):
     data, data1, data2, data3, kernels, ID = utils.get_all_data(methods)
     aligned_k = []
     for d in [data1, data2, data3]:
-        X, y, _, _, = d
+        X, y, _, _, _ = d
         aligned_k.append(ALIGNF(X, y, ID, kernels).get_K())
     return data, data1, data2, data3, aligned_k, ID
 
