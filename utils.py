@@ -148,7 +148,7 @@ def get_training_datas(method, all=True, replace=False):
     return X_train, y_train, X_val, y_val, X_test, K, ID
 
 
-def select_k(k, X_train, y_train, X_val, y_val, X_test, K, ID):
+def select_k(k, X_train, y_train, X_val, y_val, X_test):
     """
     Restrict training and testing data to 1 data set of interest, defined by k (TF type)
     :param k: int, which data set to restrict on
@@ -157,21 +157,15 @@ def select_k(k, X_train, y_train, X_val, y_val, X_test, K, ID):
     :param X_val: pd.DataFrame, validation features
     :param y_val: pd.DataFrame, validation labels
     :param X_test: pd.DataFrame, testing features
-    :param K: np.array, kernel
-    :param ID: np.array, IDs
     :return: pd.DataFrames and kernel
     """
     idx_train = np.where(np.array(X_train.loc[:, 'k']) == k)[0]
     idx_val = np.where(np.array(X_val.loc[:, 'k']) == k)[0]
     idx_test = np.where(np.array(X_test.loc[:, 'k']) == k)[0]
-    id_train, id_val, id_test = X_train.iloc[idx_train, 0], X_val.iloc[idx_val, 0], X_test.iloc[idx_test, 0]
-    id_k = np.concatenate((id_train, id_val, id_test))
-    idx = np.where(np.in1d(ID, id_k))[0]
     X_train_, y_train_ = X_train.iloc[idx_train], y_train.iloc[idx_train]
     X_val_, y_val_ = X_val.iloc[idx_val], y_val.iloc[idx_val]
     X_test_ = X_test.iloc[idx_test]
-    K_ = K[idx][:, idx]
-    return X_train_, y_train_, X_val_, y_val_, X_test_, K_, id_k
+    return X_train_, y_train_, X_val_, y_val_, X_test_
 
 
 def export_predictions(algos, X_tests):
@@ -250,16 +244,18 @@ def get_all_data(methods):
     :param methods: list of strings, kernel methods
     :return: list of data
     """
+    print('Loading data...')
     X_train, y_train, X_val, y_val, X_test, K, ID = get_training_datas(method=methods[0], replace=False)
-    X_train_1, y_train_1, X_val_1, y_val_1, X_test_1, _, _ = select_k(1, X_train, y_train, X_val, y_val, X_test, K, ID)
-    X_train_2, y_train_2, X_val_2, y_val_2, X_test_2, _, _ = select_k(2, X_train, y_train, X_val, y_val, X_test, K, ID)
-    X_train_3, y_train_3, X_val_3, y_val_3, X_test_3, _, _ = select_k(3, X_train, y_train, X_val, y_val, X_test, K, ID)
+    X_train_1, y_train_1, X_val_1, y_val_1, X_test_1 = select_k(1, X_train, y_train, X_val, y_val, X_test)
+    X_train_2, y_train_2, X_val_2, y_val_2, X_test_2 = select_k(2, X_train, y_train, X_val, y_val, X_test)
+    X_train_3, y_train_3, X_val_3, y_val_3, X_test_3 = select_k(3, X_train, y_train, X_val, y_val, X_test)
     data = [X_train, y_train, X_val, y_val, X_test]
     data1 = [X_train_1, y_train_1, X_val_1, y_val_1, X_test_1]
     data2 = [X_train_2, y_train_2, X_val_2, y_val_2, X_test_2]
     data3 = [X_train_3, y_train_3, X_val_3, y_val_3, X_test_3]
     kernels = []
-    for m in methods:
+    for k, m in enumerate(methods):
+        print('Kernel '+str(k+1)+'...')
         kernels.append(load_kernel(m))
     if len(kernels) == 1:
         kernels = kernels[0]

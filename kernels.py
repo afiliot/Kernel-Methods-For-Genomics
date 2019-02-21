@@ -399,7 +399,6 @@ def normalize_K(K):
     if K[0, 0] == 1:
         print('Kernel already normalized')
     else:
-        print('Normalizing kernel...')
         n = K.shape[0]
         diag = np.sqrt(np.diag(K))
         for i in range(n):

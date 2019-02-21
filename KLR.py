@@ -1,9 +1,5 @@
 import numpy as np
 import copy
-from tqdm import tqdm
-import os
-import pickle as pkl
-import pandas as pd
 
 class KLR():
     def __init__(self, K, ID,eps=1e-5, lbda=0.1, tol=1e-5, maxiter=50, solver=None, print_callbacks=True):
