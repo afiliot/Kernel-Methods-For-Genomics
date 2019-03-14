@@ -6,15 +6,24 @@ import SVM
 
 class ALIGNF():
     """
-    Implementation of https://cs.nyu.edu/~mohri/pub/align.pdf
+    Implementation of ALIGNF algorithm.
+    Reference: "Algorithms for Learning Kernels Based on Centered Alignment", Cortes et al. (2009)
+    Notations from the original article has been fully reused.
     """
     def __init__(self, X, y, ID, kernels):
+        """
+        :param X: pd.DataFrame, training features
+        :param y: pd.DataFrame, training labels
+        :param ID: np.array, Ids (for ordering)
+        :param kernels: list of kernels
+        """
         self.X = X
         self.y = y.loc[:, 'Bound']
         self.Y = np.outer(self.y, self.y)
         self.ID = ID
         self.kernels = kernels
-        self.idx = np.where(np.in1d(self.ID, np.array(self.X.loc[:, 'Id'])))[0]
+        self.Id_X = np.array(X.loc[:, 'Id'])
+        self.idx = np.array([np.where(self.ID == self.Id_X[i])[0] for i in range(len(self.Id_X))]).squeeze()
         self.kernels_fit = [K[self.idx][:, self.idx] for K in self.kernels]
         self.c_kernels_fit = self.center(self.kernels_fit)
         self.p = len(self.kernels)
@@ -27,14 +36,14 @@ class ALIGNF():
         print('Centering kernels...')
         c_kernels = []
         for K in kernels:
-            c_kernels.append(normalize_K(center_K(K)))
+            c_kernels.append(center_K(K))
         return c_kernels
 
     def get_a(self):
         print('Computing vector a...')
         a = np.zeros(self.p)
         for i, Kc in enumerate(self.c_kernels_fit):
-            a[i] = (Kc*self.Y).sum()
+            a[i] = (Kc * self.Y).sum()
         return a
 
     def get_M(self):
@@ -43,7 +52,7 @@ class ALIGNF():
         for i, Kc_i in enumerate(self.c_kernels_fit):
             for j, Kc_j in enumerate(self.c_kernels_fit):
                 if j >= i :
-                    M[i, j] = (Kc_i*Kc_j).sum()
+                    M[i, j] = (Kc_i * Kc_j).sum()
                     M[j, i] = M[i, j]
         return M
 
@@ -55,9 +64,7 @@ class ALIGNF():
 
     def callbackF(self, Xi, Yi=0):
         """
-        Print useful information about gradient descent evolution. This function aims at selecting the iteration
-        for which the accuracy on the validation set was the best (hence the best vectors alphas).
-        :param Xi: np.array, values returned by scipy.minimize at each iteration
+        Print useful information about gradient descent evolution.
         :return: None, update print
         """
         if self.Nfeval == 1:
@@ -87,6 +94,16 @@ class ALIGNF():
 
 
 def aligned_kernels(methods):
+    """
+    Apply ALIGNF algorithm for each data set
+    :param methods: list of strings, kernels methods
+    :return: - data: X_train, y_train, X_val, y_val, X_test
+             - data1: X_train_1, y_train_1, X_val_1, y_val_1, X_test_1
+             - data2: X_train_2, y_train_2, X_val_2, y_val_2, X_test_2
+             - data3: X_train_3, y_train_3, X_val_3, y_val_3, X_test_3
+             - aligned_k: list of aligned kernels
+             - ID: np.array, IDs
+    """
     data, data1, data2, data3, kernels, ID = utils.get_all_data(methods)
     aligned_k = []
     for d in [data1, data2, data3]:

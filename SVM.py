@@ -1,15 +1,7 @@
-import pandas as pd
 import numpy as np
-from tqdm import tqdm as tqdm
-import os
-import pickle as pkl
-import utils
-import kernels
 from scipy.optimize import fmin_l_bfgs_b
 import cvxopt
 import cvxopt.solvers
-
-
 
 
 class C_SVM():
@@ -18,12 +10,12 @@ class C_SVM():
     """
     def __init__(self, K, ID, C=10, eps=1e-5, solver='CVX', print_callbacks=True):
         """
-        :param K: np.array, kernel (computed on train+val+test data sets)
+        :param K: np.array, kernel
         :param ID: np.array, Ids (for ordering)
         :param C: float, regularization constant
         :param eps: float, threshold determining whether alpha is a support vector or not
         :param solver: int, choose between 'CVX' or 'BFGS'
-        :param print_callbacks: Bool, print evolution of gradient descent (suggested)
+        :param print_callbacks: Bool, print evolution of gradient descent when using 'L-BFGS-B' solver (suggested)
         """
         self.K = K
         self.ID = ID
@@ -49,8 +41,7 @@ class C_SVM():
 
     def callbackF(self, Xi, Yi=0):
         """
-        Print useful information about gradient descent evolution. This function aims at selecting the iteration
-        for which the accuracy on the validation set was the best (hence the best vectors alphas).
+        Print useful information about gradient descent evolution.
         :param Xi: np.array, values returned by scipy.minimize at each iteration
         :return: None, update print
         """
@@ -69,10 +60,9 @@ class C_SVM():
 
     def fit(self, X, y):
         """
-        Train C-SVM on X and y. X_pred and y_pred are used for prediction.
+        Train C-SVM on X and y.
         :param X: pd.DataFrame, training features
         :param y: pd.DataFrame, training labels
-        :return:
         """
         self.Id_fit = np.array(X.loc[:, 'Id'])
         self.idx_fit = np.array([np.where(self.ID == self.Id_fit[i])[0] for i in range(len(self.Id_fit))]).squeeze()
@@ -89,10 +79,8 @@ class C_SVM():
             res = fmin_l_bfgs_b(self.loss, a0, fprime=self.jac, bounds=bounds, callback=self.callbackF)
             self.a = res[0]
         elif self.solver == 'CVX':
-            r = np.arange(self.n)
-            o = np.ones(self.n)
-            z = np.zeros(self.n)
-            P = cvxopt.matrix(0.5*self.K_fit.astype(float), tc='d')
+            r, o, z = np.arange(self.n), np.ones(self.n), np.zeros(self.n)
+            P = cvxopt.matrix(self.K_fit.astype(float), tc='d')
             q = cvxopt.matrix(-self.y_fit, tc='d')
             G = cvxopt.spmatrix(np.r_[self.y_fit, -self.y_fit], np.r_[r, r + self.n], np.r_[r, r], tc='d')
             h = cvxopt.matrix(np.r_[o * self.C, z], tc='d')

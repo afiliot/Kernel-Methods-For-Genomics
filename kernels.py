@@ -1,17 +1,17 @@
 import numpy as np
 from tqdm import tqdm as tqdm
-from itertools import product
+from itertools import product, combinations
 from copy import deepcopy
 from scipy.sparse.linalg import eigs
 from numpy.linalg import multi_dot
-from numba import jit
+
 
 ################################################### Spectrum Kernel ####################################################
 
 
 def get_phi_u(x, k, betas):
     """
-    Compute feature vector of sequence x for Spectrum (k) Kernel
+    Compute feature vector of sequence x for Spectrum Kernel SP(k)
     :param x: string, DNA sequence
     :param k: int, length of k-mers
     :param betas: list, all combinations of k-mers drawn from 'A', 'C', 'G', 'T'
@@ -27,7 +27,7 @@ def get_phi_u(x, k, betas):
 
 def get_spectrum_K(X, k):
     """
-    Compute K(x, y) for each x, y in DNA sequences for Spectrum Kernel
+    Compute K(x, y) for each x, y in DNA sequences for Spectrum Kernel SP(k)
     :param: X: pd.DataFrame, features
     :param k: int, length of k-mers
     :return: np.array, kernel
@@ -52,7 +52,7 @@ def get_spectrum_K(X, k):
 
 def beta(d, k):
     """
-    Compute beta weights for Weighted Degree Kernel
+    Compute beta weights for Weighted Degree Kernel (k)
     :param d: int, maximal degree
     :param k: int, current degree
     :return:
@@ -83,7 +83,7 @@ def get_WD_d(x, y, d, L):
 
 def get_WD_K(X, d):
     """
-    Compute K(x, y) for each x, y in DNA sequences for Weighted Degree Kernel
+    Compute K(x, y) for each x, y in DNA sequences for Weighted Degree Kernel (d)
     :param: X: pd.DataFrame, features
     :param d: int, maximal degree
     :return:
@@ -105,7 +105,7 @@ def get_WD_K(X, d):
 
 def delta(s):
     """
-    Compute delta coefficients for weight degree kernel with shifts
+    Compute delta coefficients for Weight Degree Kernel with Shifts
     :param s: int
     :return: delta(s)
     """
@@ -155,12 +155,12 @@ def get_WDShifts_K(X, d, S):
     return K
 
 
-################################################ Mismatch (k,m) Kernel #################################################
+################################################ Mismatch Kernel (k,m) #################################################
 
 
 def get_phi_km(x, k, m, betas):
     """
-    Compute feature vector of sequence x for Mismatch (k,m) Kernel
+    Compute feature vector of sequence x for Mismatch Kernel (k,m)
     :param x: string, DNA sequence
     :param k: int, length of k-mers
     :param m: int, maximal mismatch
@@ -176,6 +176,11 @@ def get_phi_km(x, k, m, betas):
 
 
 def letter_to_num(x):
+    """
+    Replace letters by numbers
+    :param x: string, DNA sequence
+    :return: string, DNA sequence with numbers instead of letters
+    """
     return x.replace('A', '1').replace('C', '2').replace('G', '3').replace('T', '4')
 
 
@@ -190,7 +195,7 @@ def format(x):
 
 def get_mismatch_K(X, k, m):
     """
-    Compute K(x, y) for each x, y in DNA sequences for Weighted Degree Kernel
+    Compute K(x, y) for each x, y in DNA sequences for Mismatch Kernel (k, m)
     :param: X: pd.DataFrame, features
     :param k: int, length of k-mers
     :param m: int, maximal mismatch
@@ -305,6 +310,7 @@ def rec(func):
     method for handling recursion memory
     """
     memory = {}
+
     def recd(*args):
         key = '-'.join('[%s]' % arg for arg in args)
         if key not in memory:
@@ -358,9 +364,9 @@ def K_k(lbda, k, x, y):
            )
 
 
-def get_substring_K(X, lbda, k):
+def get_string_K(X, lbda, k):
     """
-    Compute Substring Kernel (lbda, k)
+    Compute String Kernel (lbda, k)
     :param X: pd.DataFrame, features
     :param lbda: float
     :param k: int, length of k-mers
@@ -381,7 +387,7 @@ def get_substring_K(X, lbda, k):
 
 def center_K(K):
     """
-    Normalize kernel
+    Center kernel
     :param K: np.array
     :return: np.array
     """
@@ -409,36 +415,92 @@ def normalize_K(K):
         np.fill_diagonal(K, np.ones(n))
     return K
 
+################################################### Gappy Kernels (k, g) ################################################
+
+
+def gappy_k(x, k, g, betas):
+    """
+    Compute feature vector of sequence x for Gappy Kernel (k, g)
+    :param x: string, DNA sequence
+    :param k: int, length of k-mers
+    :param g: int, gap
+    :param betas: list, all combinations of k-mers drawn from 'A', 'C', 'G', 'T'
+    :return: np.array, feature vector of x
+    """
+    phi = np.zeros(len(betas))
+    gap_set = sum([list(combinations(x[i:i+k], k-g)) for i in range(101 - k + 1)], [])
+    for i, b in enumerate(betas):
+        phi[i] = (b in gap_set)
+    return phi
+
+
+def get_gappy_K(X, k, g):
+    """
+    Compute Gappy Kernel (k, g)
+    :param X: pd.DataFrame, features
+    :param k: int, length of k-mers
+    :param g: int, gap
+    :return: np.array, kernel
+    """
+    n = X.shape[0]
+    K = np.zeros((n, n))
+    betas = np.array([format(''.join(c)) for c in product('ACGT', repeat=k)])
+    for i, x in tqdm(enumerate(X.loc[:, 'seq']), total=n, desc='Building kernel'):
+        x = format(x)
+        phi_x = gappy_k(x, k, g, betas)
+        for j, y in enumerate(X.loc[:, 'seq']):
+            print(j)
+            if j >= i:
+                K[i, j] = np.dot(phi_x, gappy_k(y, k, g, betas))
+                K[j, i] = K[i, j]
+    K = normalize_K(K)
+    return K
+
+
 #################################################### Select method #####################################################
 
 
 def select_method(X, method):
     """
-    Given method and param dictionary, compute kernel
+    Compute the kernel corresponding to the input method
+
+    ********************************************** Methods available ***************************************************
+    - SP_k{x} : Spectrum kernel with x = int
+    - WD_d{x} : Weight degree kernel with x = int
+    - WDS_d{x}_s{y} : Weight degree kernel with shifts with x = int (d), y = int (s)
+    - MM_{x}_{y}: Mismatch kernel with x = int (k) and y = int (m)
+    - LA_e{x}_d{y}_b{z}_smith{X}_eig{Y} with x = int (e), y = int (d), z = float (beta), X = 0/1 (smith), Y = 0/1 (eig)
+    - SS_l{x}_k{y} with x = float (lambda), y = int (k)
+    - GP_k{x}_g{y} with x = int (k), y = int (gap g)
+    ********************************************************************************************************************
+
     :param X: pd.DataFrame, features
     :param method: string, method to apply for building the kernel
     :return: np.array, K
     """
+    m = method.split('_')
     if method[:2] == 'SP':
-        k = int(method[2:])
+        k = int(m[1][1:])
         K = get_spectrum_K(X, k)
     elif method[:2] == 'WD' and method[2] != 'S':
-        k = int(method[2:])
-        K = get_WD_K(X, k)
+        d = int(m[1][1:])
+        K = get_WD_K(X, d)
     elif method[:2] == 'MM':
-        k, m = int(method[2]), int(method[3])
+        k, m = int(m[1][1:]), int(m[2][1:])
         K = get_mismatch_K(X, k, m)
     elif method[:2] == 'LA':
-        m = method.split('_')
         e, d, beta = [float(m[i][1:]) for i in range(1, 4)]
         smith, eig = int(m[4][5:]), int(m[5][3:])
         K = get_LA_K(X, e, d, beta, smith, eig)
     elif method[:3] == 'WDS':
-        m = method.split('_')
         d, S = int(m[1][1:]), int(m[2][1:])
         K = get_WDShifts_K(X, d, S)
     elif method[:2] == 'SS':
-        m = method.split('_')
         lbda, k = float(m[1][1:]), int(m[2][1:])
-        K = get_substring_K(X, lbda, k)
+        K = get_string_K(X, lbda, k)
+    elif method[:2] == 'GP':
+        k, g = int(m[1][1:]), int(m[2][1:])
+        K = get_gappy_K(X, k, g)
+    else:
+        NotImplementedError('Method not implemented. Please refer to the documentation for choosing among available methods')
     return K

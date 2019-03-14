@@ -5,18 +5,17 @@ import warnings
 import kernels as km
 import pickle as pkl
 import datetime
-import utils
 from tqdm import tqdm
 from SVM import C_SVM
 from KLR import KLR
 from KRR import KRR
 import operator
-from itertools import product
 
+path = '/Users/bfiliot/MVA/KERNEL/Data'
 
 def get_train(k):
     """
-    Load training data set specified by k. Replace 0s by -1s in target and insert a flag k.
+    Load training data set specified by k. Replace 0 by -1 in target and insert a flag k.
     :param k: int, which data set to load
     :return:
         - X: pd.DataFrame, features
@@ -44,10 +43,11 @@ def get_test(k):
 
 def train_test_split_k(X, y, p):
     """
-    Split training data into training (p%) and testing set (1-p %), with usually p=0.75.
+    Split training data into training (p%) and testing set (1-p %), with usually p=0.75 for a single dataset.
     Training and testing data sets are balanced w.r.t to the target y.
     :param X: pd.DataFrame, features
     :param y: pd.DataFrame, labels (0/1)
+    :param p: float between 0 and 1, split proportion
     :return:
         - X_train: pd.DataFrame, training features
         - X_val: pd.DataFrame, testing features
@@ -66,11 +66,11 @@ def train_test_split_k(X, y, p):
 
 def trainInRepo(file):
     """
-    Check if training data have already been stored in the repo
+    Check if training data have already been stored in your repository
     :param file: string, file name
     :return Boolean
     """
-    return file in os.listdir('./Data')
+    return file in os.listdir(path)
 
 
 def resetIndex(df):
@@ -88,8 +88,8 @@ def resetIndex(df):
 
 def train_test_split():
     """
-    Split training data into training (p%) and testing set (1-p %), with usually p=0.75
-    for each of the 3 types of TF and concatenate trains and vals.
+    Split training data into training (p%) and testing set (1-p %), with usually p=0.75 for each of the 3 types
+    of TF and concatenate trains and vals.
     Training and testing data sets are balanced w.r.t to the target y.
     :return:
         - X_train: pd.DataFrame, training features
@@ -114,8 +114,7 @@ def train_test_split():
 
 def get_training_datas(method, all=True, replace=False):
     """
-    Construct training and testing data, and kernels.
-    :param: d: int, maximal degree for Weighted Degree Kernel
+    Construct training, testing data, and kernels.
     :param: method: string, method used for computing kernels
     :param: replace: Boolean, whether or not replace the existing files in the repo
     :return:
@@ -136,7 +135,7 @@ def get_training_datas(method, all=True, replace=False):
         ID = X.loc[:, 'Id']
     else:
         if trainInRepo(file) and not replace:
-            X_train, y_train, X_val, y_val, X_test, K, ID = pkl.load(open(os.path.join('./Data', file), 'rb'))
+            X_train, y_train, X_val, y_val, X_test, K, ID = pkl.load(open(os.path.join(path, file), 'rb'))
         else:
             X_train, y_train, X_val, y_val, X_test = train_test_split()
             X_test.loc[:, 'Id'] = -(X_test.loc[:, 'Id']+1)
@@ -144,7 +143,7 @@ def get_training_datas(method, all=True, replace=False):
             ID = np.array(X.loc[:, 'Id'])
             K = km.select_method(X, method)
             file = 'training_data_'+method+'.pkl'
-            pkl.dump([X_train, y_train, X_val, y_val, X_test, K, ID], open(os.path.join('./Data', file), 'wb'))
+            pkl.dump([X_train, y_train, X_val, y_val, X_test, K, ID], open(os.path.join(path, file), 'wb'))
     return X_train, y_train, X_val, y_val, X_test, K, ID
 
 
@@ -171,7 +170,7 @@ def select_k(k, X_train, y_train, X_val, y_val, X_test):
 def export_predictions(algos, X_tests):
     """
     Compute and export predictions on test set (0 or 1)
-    :param svms: list, list of trained svms
+    :param algos: list, list of trained svms
     :param X_tests: list, list of testing pd.DataFrames
     :return: np.array, predictions
     """
@@ -192,16 +191,19 @@ def export_predictions(algos, X_tests):
 def sort_accuracies_k(algo='C_SVM', k=1):
     """
     Sort best accuracies obtained for each kernel methods (through cross validation) along with constants.
-    :param algo: string, 'C_SVM' or 'SVM2'
+    :param algo: string, 'C_SVM', 'KLR', 'KRR'
     :param k: int, which data set to consider (default 1)
-    :return: pd.DataFrame, methods+accuracies+Cs
+    :return: pd.DataFrame with the following columns:
+            - Kernel method
+            - Accuracy on validation
+            - Parameters used
     """
     k_ = 'k'+str(k)
     val_scores = {}
     C_opts = {}
     warnings.filterwarnings('ignore')
     for file in os.listdir('./Data/CrossVals/'):
-        if algo in file and k_ in file:
+        if algo in file and k_ in file and 'SVM_NLCK_p' not in file:
             pred = pkl.load(open(os.path.join('./Data/CrossVals/', file), 'rb'))
             file = file.split(k_)[0][5:-1]
             val_scores[file] = np.max(pred[3])
@@ -218,14 +220,13 @@ def sort_accuracies_k(algo='C_SVM', k=1):
     return p
 
 
-def sort_accuracies(algo='C_SVM', k=3):
+def sort_accuracies(algo='C_SVM'):
     """
-    Sort accuracies for several data sets (if k=3, then all data sets will be considered)
+    Sort accuracies for the 3 data sets
     :param algo: string, 'C_SVM' or 'SVM2'
-    :param k: int, which data set to consider (default 1)
     :return: pd.DataFrame, methods+accuracies+Cs
     """
-    for k_ in range(1, k+1):
+    for k_ in range(1, 4):
         if k_ == 1:
             p = sort_accuracies_k(algo, k_)
         else:
@@ -234,15 +235,27 @@ def sort_accuracies(algo='C_SVM', k=3):
 
 
 def load_kernel(method):
+    """
+    Load kernel
+    :param method: string, kernel method
+    :return: np.array, kernel
+    """
     _, _, _, _, _, K, _ = get_training_datas(method=method, replace=False)
     return K
 
 
 def get_all_data(methods):
     """
-    Return all the necessary data for training and running ALIGNF algorithm.
+    Return all the necessary data for training and running the experiments.
+    Specially designed for ALIGNF and NLCK algorithms.
     :param methods: list of strings, kernel methods
-    :return: list of data
+    :return: list:
+            - X_train, y_train, X_val, y_val, X_test
+            - X_train_1, y_train_1, X_val_1, y_val_1, X_test_1
+            - X_train_2, y_train_2, X_val_2, y_val_2, X_test_2
+            - X_train_3, y_train_3, X_val_3, y_val_3, X_test_3
+            - kernels (list of np.array kernels)
+            - IDs (np.array)
     """
     print('Loading data...')
     X_train, y_train, X_val, y_val, X_test, K, ID = get_training_datas(method=methods[0], replace=False)
@@ -260,43 +273,6 @@ def get_all_data(methods):
     if len(kernels) == 1:
         kernels = kernels[0]
     return data, data1, data2, data3, kernels, ID
-
-
-def predictions(DATA, algos, P_opts):
-    """
-    Export predictions for submission
-    :param method: string, which kernel method to use
-    :param algo: string, choose between CSVM, KLR or KRR
-    :param P_opts: list, optimal values of constants for each data set (depending on the algorithm)
-    :return: np.array, predictions
-    """
-    data, data1, data2, data3, K, ID = DATA
-    if isinstance(K, list):
-        K_1, K_2, K_3 = K
-    else:
-        K_1 = K_2 = K_3 = K
-    X_train_1, y_train_1, X_val_1, y_val_1, X_test_1 = data1
-    X_train_2, y_train_2, X_val_2, y_val_2, X_test_2 = data2
-    X_train_3, y_train_3, X_val_3, y_val_3, X_test_3 = data3
-    alg_init = []
-    for p, algo, K in zip(P_opts, algos, [K_1, K_2, K_3]):
-        if algo == 'CSVM':
-            alg_init.append(C_SVM(K=K, ID=ID, C=p, print_callbacks=False))
-        elif algo == 'KRR':
-            alg_init.append(KRR(K=K, ID=ID, lbda=p))
-        else:
-            NotImplementedError('Please choose between "CSVM", "KRR" or "KLR"')
-    algo_fit = []
-    for algo, data in zip(alg_init, [data1, data2, data3]):
-        X_train, y_train, X_val, y_val, X_test = data
-        algo.fit(X_train, y_train)
-        algo_fit.append(algo)
-        pred_tr = algo.predict(X_train)
-        print('Accuracy on train set: {:0.4f}'.format(algo.score(pred_tr, y_train)))
-        pred_val = algo.predict(X_val)
-        print('Accuracy on val set: {:0.4f}'.format(algo.score(pred_val, y_val)))
-    y_pred_test = utils.export_predictions(algo_fit, [X_test_1, X_test_2, X_test_3])
-    return y_pred_test
 
 
 def cross_validation(Ps, data, algo, kfolds=5, pickleName='cv_C_SVM', **kwargs):
@@ -334,7 +310,7 @@ def cross_validation(Ps, data, algo, kfolds=5, pickleName='cv_C_SVM', **kwargs):
             if algo == 'CSVM':
                 alg = C_SVM(C=P, print_callbacks=False, **kwargs)
             elif algo == 'KLR':
-                alg = KLR(lbda=P, print_callbacks=False, **kwargs)
+                alg = KLR(lbda=P, **kwargs)
             elif algo == 'KRR':
                 alg = KRR(lbda=P, **kwargs)
             else:
@@ -355,4 +331,37 @@ def cross_validation(Ps, data, algo, kfolds=5, pickleName='cv_C_SVM', **kwargs):
              open(os.path.join('./Data/CrossVals/', pickleName), 'wb'))
     return p_opt, scores_tr, scores_te, mean_scores_tr, mean_scores_te
 
+
+def reformat_data(data, kernels, ID):
+    """
+    Reformat data in order to make computations faster. Mostly useful for NLCK algorithm
+    where reformat_data allows to compute the final non-linear combination on the dataset of interest and not
+    the whole union of the 3. This function formats the IDs.
+    :param data: list (X_train, y_train, X_val, y_val, X_test)
+    :param kernels: list of kernels
+    :param ID: np.array, Ids
+    :return: list:
+            - X_train
+            - y_train
+            - X_val
+            - y_val
+            - X_test
+            - kernels
+            - ID
+    """
+    X_train, y_train, X_val, y_val, X_test = data
+    ID_ = np.concatenate(
+        (np.array(X_train.loc[:, 'Id']), np.array(X_val.loc[:, 'Id']), np.array(X_test.loc[:, 'Id'])))
+    idx = np.array([np.where(ID == ID_[i])[0] for i in range(len(ID_))]).squeeze()
+    kernels_ = []
+    for K in tqdm(kernels):
+        kernels_.append(K[idx][:, idx])
+    ID_ = np.arange(ID_.shape[0])
+    X_train.Id = ID_[:X_train.shape[0]]
+    X_val.Id = ID_[X_train.shape[0]:(X_train.shape[0] + X_val.shape[0])]
+    X_test.Id = ID_[(X_train.shape[0] + X_val.shape[0]):(
+            X_train.shape[0] + X_val.shape[0] + X_test.shape[0])]
+    y_train.Id = ID_[:y_train.shape[0]]
+    y_val.Id = ID_[X_train.shape[0]:(X_train.shape[0] + X_val.shape[0])]
+    return X_train, y_train, X_val, y_val, X_test, kernels_, ID_
 

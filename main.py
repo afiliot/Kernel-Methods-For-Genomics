@@ -1,56 +1,113 @@
 import utils
 from SVM import C_SVM
-from ALIGNF import ALIGNF, aligned_kernels
-from NLCKernels import NLCK, aligned_kernels
+import ALIGNF
+import NLCKernels
 import numpy as np
 from itertools import product
+from tqdm import tqdm
+import pickle as pkl
+import os
+import pandas as pd
 
-check_alignf = False
-check_NLCK = False
-check_method = True
-build_kernel = False
+
+# What to do ?
+
+"""
+    ******************************************* Kernel ethods available ************************************************
+    - SP_k{x} : Spectrum kernel with x = int
+    - WD_d{x} : Weight degree kernel with x = int
+    - WDS_d{x}_s{y} : Weight degree kernel with shifts with x = int (d), y = int (s)
+    - MM_{x}_{y}: Mismatch kernel with x = int (k) and y = int (m)
+    - LA_e{x}_d{y}_b{z}_smith{X}_eig{Y} with x = int (e), y = int (d), z = float (beta), X = 0/1 (smith), Y = 0/1 (eig)
+    - SS_l{x}_k{y} with x = float (lambda), y = int (k)
+    - GP_k{x}_g{y} with x = int (k), y = int (gap g)
+    ********************************************************************************************************************
+"""
+
+check_alignf = False  # Use ALIGNF algorithm
+check_NLCK   = False    # Use NLCK algorithm
+check_CVNLCK = False  # Use cross validation on NLCK algorithm
+check_method = False  # Use a particular method
+build_kernel = False  # Build a kernel
+check_other  = False   # Free
+check_permut = True   #
 
 if __name__ == '__main__':
-    # Build kernels
-    # Methods available:
-    # - SPx : spectrum kernel with x = int
-    # - WDx : Weight degree kernel with x = int
-    # - WDS_dx_sy : Weight degree kernel with x = int (d), y = int (s)
-    # - MMxy: mismatch kernel with x = int (k) and y = int (m)
-    # - LA_ex_dy_bz_smithX_eigY with x = int (e), y = int (d), z = float (beta), X = 0/1 (smith), Y = 0/1 (eig)
-
     if build_kernel:
-        X_train, y_train, X_val, y_val, X_test, K, ID = utils.get_training_datas(method='SP7', replace=True)
+        methods = ['LV_k5_l0.3_r44_TF1',
+                   'LV_k6_l0.3_r44_TF1',
+                   'LV_k7_l0.3_r44_TF1',
+                   'LV_k8_l0.3_r44_TF1',
+                   'LV_k8_l0.3_r44_TF0']
+        for method in methods:
+            X_train, y_train, X_val, y_val, X_test, K, ID = utils.get_training_datas(method=method, replace=True)
 
     elif check_method:
-        method = 'SP6'
-        algo = 'KRR'
-        solver = None
+        method = 'LV_k3_l0.3_r44_TF1'
+        algo = 'CSVM'
+        solver = 'CVX'
         data, data1, data2, data3, K, ID = utils.get_all_data([method])
-        Cs = np.sort([i * 10 ** j for (i, j) in product(range(1, 10), range(-5, 2))])
-        utils.cross_validation(Ps=Cs, data=data1, algo='KRR', solver=solver, kfolds=3, pickleName='cv_C_SVM_f1', K=K, ID=ID)
+        Cs = np.sort([i * 10 ** j for (i, j) in product(range(1, 10), range(-2, 1))])
+        utils.cross_validation(Ps=Cs, data=data1, algo=algo, solver=solver, kfolds=3,
+                               pickleName='cv_C_SVM_'+method+'_k1.pkl', K=K, ID=ID)
 
     elif check_alignf:
-        methods = ['SP6', 'WD5', 'WD4', 'SP5']
-        data, data1, data2, data3, kernels, ID = aligned_kernels(methods)
-        K = kernels[0]  # first data set
-        svm = C_SVM(K, ID)
-        X_train_1, y_train_1, X_val_1, y_val_1, X_test_1 = data1
-        svm.fit(X_train_1, y_train_1)
-        Cs = np.sort([i * 10 ** j for (i, j) in product(range(1, 10), range(-5, 2))])
-        utils.cross_validation(Ps=Cs, data=data1, algo='CSVM', kfolds=5, pickleName='cv_C_SVM_f1', K=K, ID=ID)
+        methods = ['NLCK_p9_k1', 'NLCK_p9_k2', 'NLCK_p9_k3']
+        data, data1, data2, data3, kernels, ID = ALIGNF.aligned_kernels(methods)
+        K = kernels[0]  # 0 index for first data set
+        X_train_1, y_train_1, X_val_1, y_val_1, X_test_1, K_1, ID_1 = utils.reformat_data(data1, [K], ID)
+        Cs = np.sort([i * 10 ** j for (i, j) in product(range(1, 10), range(-3, 2))])
+        utils.cross_validation(Ps=Cs, data=data1, algo='CSVM', kfolds=5, pickleName='cv_C_SVM_alignf_k1.pkl', K=K_1, ID=ID_1)
 
     elif check_NLCK:
-        methods = ['SP6', 'MM61', 'WD10']
-        lbdas = [0.01, 0.01, 0.01]
-        degrees = [3, 2, 2]
-        data, data1, data2, data3, kernels, ID = aligned_kernels(methods, lbdas=lbdas, degrees=degrees)
-        K = kernels[0]  # first data set
-        svm = C_SVM(kernels[0], ID)
-        X_train_1, y_train_1, X_val_1, y_val_1, X_test_1 = data1
-        Cs = np.sort([i * 10 ** j for (i, j) in product(range(1, 10), range(-5, 2))])
-        utils.cross_validation(Ps=Cs, data=data1, algo='CSVM', kfolds=5, pickleName='cv_C_SVM_f1', K=K, ID=ID)
+        methods = ['SP6', 'SP5', 'SP4']
+        data, data1, data2, data3, kernels, ID = utils.get_all_data(methods)
+        X_train_1, y_train_1, X_val_1, y_val_1, X_test_1, kernels_1, ID_1 = utils.reformat_data(data1, kernels, ID)
+        Km1 = NLCKernels.NLCK(X_train_1, y_train_1, ID_1, kernels_1, C=1e-2, eps=1e-9, degree=2).get_K()
+        svm = C_SVM(Km1, ID_1)
+        Cs = np.sort([i * 10 ** j for (i, j) in product(range(1, 10), range(-3, 5))])
+        utils.cross_validation(Ps=Cs, data=data1, algo='CSVM', kfolds=5, pickleName='cv_C_SVM_f1', K=Km_1, ID=ID_1)
 
+    elif check_other:
+        pass
+
+    elif check_CVNLCK:
+        methods = ['NLCK_p9_k1', 'NLCK_p9_k2', 'NLCK_p9_k3']
+        Cs_NLK = [1e-3, 1e-2, 0.1, 1, 10, 100]
+        Cs_SVM = np.concatenate((np.linspace(0.01, 0.1, 19), np.linspace(0.1, 1, 91), np.linspace(1, 10, 19)))
+        degrees = [1]
+        lbdas = [1, 5, 10, 50, 100]
+        NLCKernels.cross_validation(k=1, methods=methods, Cs_NLK=Cs_NLK, Cs_SVM=Cs_SVM, degrees=degrees, lambdas=lbdas)
+        NLCKernels.cross_validation(k=2, methods=methods, Cs_NLK=Cs_NLK, Cs_SVM=Cs_SVM, degrees=degrees, lambdas=lbdas)
+        NLCKernels.cross_validation(k=3, methods=methods, Cs_NLK=Cs_NLK, Cs_SVM=Cs_SVM, degrees=degrees, lambdas=lbdas)
+
+    elif check_permut:
+        methods = ['NLCK_p9_k1', 'NLCK_p9_k2', 'NLCK_p9_k3']
+        data, data1, data2, data3, kernels, ID = utils.get_all_data(methods)
+        X_train_1, y_train_1, X_val_1, y_val_1, X_test_1, kernels_1, ID_1 = utils.reformat_data(data2, kernels, ID)
+        k1, k2, k3 = kernels_1
+        i = 0
+        smax = 0
+        W1, W2, W3, S = [], [], [], []
+        for w1 in tqdm(np.linspace(0, 10, 21)):
+            for w3 in np.linspace(0, 10, 21):
+                for w2 in np.linspace(0, 10, 21):
+                    i += 1
+                    K = w1 * k1 + w2 * k2 + w3 * k3
+                    svm = C_SVM(K, ID_1, C=2)
+                    svm.fit(X_train_1, y_train_1)
+                    s = svm.score(svm.predict(X_val_1), y_val_1)
+                    if s >= smax:
+                        w1max, w2max, w3max = w1, w2, w3
+                        smax = s
+                        W1.append(w1max)
+                        W2.append(w2max)
+                        W3.append(w3max)
+                        S.append(s)
+                    print('Iteration {}/8000, w1={:0.3f}, w2={:0.3f}, w3={:0.3f}, val_score={:0.6f}, val_max={:0.6f}'.format(i, w1, w2,w3, s, smax))
+        results = pd.DataFrame({'w1': W1, 'w2': W2, 'w3': W3, 'val_acc': S})
+        pkl.dump(results, open(os.path.join('./Data/CrossVals/', 'permut_k2.pkl', 'wb')))
+        print('Max val_score', smax, 'Optimal alignment', (w1max, w2max, w3max))
 
 
 

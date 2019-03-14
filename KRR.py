@@ -2,10 +2,16 @@ import numpy as np
 
 
 class KRR():
+    """
+    Implementation of Kernel Ridge Regression
+    """
     def __init__(self, K, ID, eps=1e-5, lbda=0.1, solver=None):
         """
-        kernel specifies the type of kernel to use
-        lamb specifies the regularization parameter
+        :param K: np.array, kernel
+        :param ID: np.array, Ids (for ordering)
+        :param eps: float, threshold determining whether alpha is a support vector or not
+        :param lbda: float, regularization parameter
+        :param solver: None
         """
         self.K = K
         self.ID = ID
@@ -14,6 +20,11 @@ class KRR():
         self.solver = solver
 
     def fit(self, X, y):
+        """
+        Train KRR on X and y
+        :param X: pd.DataFrame, training features
+        :param y: pd.DataFrame, training labels
+        """
         self.Id_fit = np.array(X.loc[:, 'Id'])
         self.idx_fit = np.array([np.where(self.ID == self.Id_fit[i])[0] for i in range(len(self.Id_fit))]).squeeze()
         self.K_fit = self.K[self.idx_fit][:, self.idx_fit]
