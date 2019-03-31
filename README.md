@@ -14,4 +14,4 @@ The program ``run.py`` aims at reproducing our best submission. ``kernels.py`` c
 
 ### Ranking
 
-We finally ranked 
+We were finally ranked 24th/75 with an accuracy of 0.70733 (best accuracy 0.73066) on the public leaderboard (20% of test set). And 38th/75 with an accuracy of 0.67466 (best accuracy 0.71200) on the private leaderboard (100% of test set).
