@@ -64,3 +64,4 @@ class KRR():
         label = np.array(y.loc[:, 'Bound']) if not isinstance(y, np.ndarray) else y
         assert 0 not in np.unique(label), "Labels must be -1 or 1, not 0 or 1"
         return np.mean(pred == label)
+
