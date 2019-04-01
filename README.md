@@ -15,3 +15,16 @@ The program ``run.py`` aims at reproducing our best submission. ``kernels.py`` c
 ### Ranking
 
 We were finally ranked 24th/75 with an accuracy of 0.70733 (best accuracy 0.73066) on the public leaderboard (20% of test set). And 38th/75 with an accuracy of 0.67466 (best accuracy 0.71200) on the private leaderboard (100% of test set).
+
+### References
+
+Cortes, C.,  Mohri, M., and Rostamizadeh, A. Learning non-linear combinations of kernels. In *Advances in Neural Information Processing Systems 22 - Proceedings of the 2009 Conference*, pp. 396–404, 2009. ISBN9781615679119.
+
+Cortes, C., Mohri, M., and Rostamizadeh, A. Algorithms for learning kernels based on centered alignment. *Journal of Machine Learning Research*, 13:795–828, 2012.
+
+Leslie, C., Eskin, E., Weston, J., and Stafford Noble, W. Mismatch string kernels for svm protein classification. volume 20, pp. 1417–1424, 01 2002.
+
+Sonnenburg, S., Rtsch, G., and Rieck, K. Large Scale Learning with String Kernels, pp. 73–104. 01 2007.
+
+Vert, J., Saigo, H., and Akutsu, T. Local alignment kernels for biological sequences. *Kernel Methods in Computational Biology*, pp. 131–154, 01 2004.
+
