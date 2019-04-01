@@ -307,7 +307,7 @@ def get_LA_K(X, e=11, d=1, beta=0.5, smith=0, eig=1):
 
 def rec(func):
     """
-    method for handling recursion memory
+    Method for handling recursion memory
     """
     memory = {}
 
@@ -376,7 +376,6 @@ def get_string_K(X, lbda, k):
     K = np.zeros((n, n))
     for i, x in tqdm(enumerate(X.loc[:, 'seq']), total=n, desc='Building kernel'):
         for j, y in enumerate(X.loc[:, 'seq']):
-            print(j)
             if j >= i:
                 K[i, j] = K_k(lbda, k, x, y)
                 K[j, i] = K[i, j]
@@ -449,7 +448,6 @@ def get_gappy_K(X, k, g):
         x = format(x)
         phi_x = gappy_k(x, k, g, betas)
         for j, y in enumerate(X.loc[:, 'seq']):
-            print(j)
             if j >= i:
                 K[i, j] = np.dot(phi_x, gappy_k(y, k, g, betas))
                 K[j, i] = K[i, j]

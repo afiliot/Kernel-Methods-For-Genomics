@@ -4,6 +4,7 @@ from scipy.optimize import fmin_l_bfgs_b
 import utils
 import SVM
 
+
 class ALIGNF():
     """
     Implementation of ALIGNF algorithm.

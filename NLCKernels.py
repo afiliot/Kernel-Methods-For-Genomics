@@ -13,7 +13,7 @@ class NLCK():
     """
     Implementation of NLCK algorithm.
     Reference : "Learning Non-Linear Combinations of Kernels", Cortes et al. (2009)
-    Notations from the original article has been fully reused.
+    Notations from the original article have been fully reused.
     NLCK class returns the optimal weights of the non-linear combination of kernels
     """
     def __init__(self, X, y, ID, kernels, C=1e-5, eps=1e-8, degree=2):
@@ -91,7 +91,7 @@ class NLCK():
             score_prev = score.copy()
         return u_next
 
-    def get_K(self, u0=0, fnorm=1, n_iter=20, eta=1):
+    def get_K(self, u0=0, fnorm=1, n_iter=50, eta=1):
         u_star = self.fit(u0, fnorm, n_iter, eta)
         print('Alignment vector : ', u_star)
         Km = np.sum((self.kernels * u_star[:, None, None]), axis=0) ** self.degree
@@ -147,5 +147,4 @@ def cross_validation(k, methods, Cs_NLK, Cs_SVM, degrees, lambdas):
                                    pickleName='cv_C_SVM_NLCK_C{}_d{}_l{}_p{}_k{}.pkl'.format(C, d, lbda, p, k))
         # Save results
         results.iloc[i, 1:6] = C, d, lbda, C_opt, np.max(mean_scores_te)
-        pkl.dump(results, open(os.path.join('./Data/CrossVals/', 'cv_C_SVM_NLCK_p{}_k{}.pkl'.format(p, k)), 'wb'))
     return results

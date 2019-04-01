@@ -11,18 +11,21 @@ from KLR import KLR
 from KRR import KRR
 import operator
 
-path = '/Users/bfiliot/MVA/KERNEL/Data'
+path = '/Users/bfiliot/MVA/KERNEL/Data' #'./Data'
+
+
+######################################Load raw training and testing data################################################
+
 
 def get_train(k):
     """
     Load training data set specified by k. Replace 0 by -1 in target and insert a flag k.
     :param k: int, which data set to load
     :return:
-        - X: pd.DataFrame, features
+        - X: pd.DataFrame, sequences
         - y: pd.DataFrame, labels (0/1)
     """
-    X = pd.read_csv('./Data/Xtr' + str(k) + '.csv')
-    y = pd.read_csv('./Data/Ytr' + str(k) + '.csv')
+    X, y = pd.read_csv('./Data/Xtr' + str(k) + '.csv'), pd.read_csv('./Data/Ytr' + str(k) + '.csv')
     y['Bound'] = y['Bound'].replace(0, -1)
     X.insert(1, 'k', k+1)
     y.insert(1, 'k', k+1)
@@ -34,23 +37,25 @@ def get_test(k):
     Load testing data set specified by k
     :param k: int, which data set to load
     :return:
-        - X: pd.DataFrame, features
+        - X: pd.DataFrame, sequences
     """
     X = pd.read_csv('./Data/Xte' + str(k) + '.csv')
     X.insert(1, 'k', k+1)
     return X
+
+###########################################Split train and test#########################################################
 
 
 def train_test_split_k(X, y, p):
     """
     Split training data into training (p%) and testing set (1-p %), with usually p=0.75 for a single dataset.
     Training and testing data sets are balanced w.r.t to the target y.
-    :param X: pd.DataFrame, features
+    :param X: pd.DataFrame, sequences
     :param y: pd.DataFrame, labels (0/1)
     :param p: float between 0 and 1, split proportion
     :return:
-        - X_train: pd.DataFrame, training features
-        - X_val: pd.DataFrame, testing features
+        - X_train: pd.DataFrame, training sequences
+        - X_val: pd.DataFrame, testing sequences
         - y_train: pd.DataFrame, training labels
         - y_val: pd.DataFrame, testing labels
     """
@@ -64,39 +69,17 @@ def train_test_split_k(X, y, p):
     return X_train, y_train, X_val, y_val
 
 
-def trainInRepo(file):
-    """
-    Check if training data have already been stored in your repository
-    :param file: string, file name
-    :return Boolean
-    """
-    return file in os.listdir(path)
-
-
-def resetIndex(df):
-    """
-    Reset index of pd.dataFrames
-    :param df: list of pd.dataFrame
-    :return: list of pd.dataFrame
-    """
-    D = []
-    for d in df:
-        d.reset_index(drop=True, inplace=True)
-        D.append(d)
-    return D
-
-
 def train_test_split():
     """
     Split training data into training (p%) and testing set (1-p %), with usually p=0.75 for each of the 3 types
     of TF and concatenate trains and vals.
     Training and testing data sets are balanced w.r.t to the target y.
     :return:
-        - X_train: pd.DataFrame, training features
-        - X_val: pd.DataFrame, validation features
+        - X_train: pd.DataFrame, training sequences
+        - X_val: pd.DataFrame, validation sequences
         - y_train: pd.DataFrame, training labels
         - y_val: pd.DataFrame, validation labels
-        - X_test: pd.DataFrame, testing features
+        - X_test: pd.DataFrame, testing sequences
     """
     for k in range(3):
         X, y = get_train(k)
@@ -112,21 +95,47 @@ def train_test_split():
     return X_train, y_train, X_val, y_val, X_test
 
 
+def select_k(k, X_train, y_train, X_val, y_val, X_test):
+    """
+    Restrict training and testing data to 1 data set of interest, defined by k (TF type)
+    :param k: int, which data set to restrict on
+    :param X_train: pd.DataFrame, training sequences
+    :param y_train: pd.DataFrame, training labels
+    :param X_val: pd.DataFrame, validation sequences
+    :param y_val: pd.DataFrame, validation labels
+    :param X_test: pd.DataFrame, testing sequences
+    :return: pd.DataFrames:
+        - X_train: training sequences
+        - y_train: training labels
+        - X_val: validation sequences
+        - y_val: validation labels
+        - X_test: testing sequences
+    """
+    idx_train = np.where(np.array(X_train.loc[:, 'k']) == k)[0]
+    idx_val = np.where(np.array(X_val.loc[:, 'k']) == k)[0]
+    idx_test = np.where(np.array(X_test.loc[:, 'k']) == k)[0]
+    X_train_, y_train_ = X_train.iloc[idx_train], y_train.iloc[idx_train]
+    X_val_, y_val_ = X_val.iloc[idx_val], y_val.iloc[idx_val]
+    X_test_ = X_test.iloc[idx_test]
+    return X_train_, y_train_, X_val_, y_val_, X_test_
+
+#########################################Build kernels and load all data################################################
+
+
 def get_training_datas(method, all=True, replace=False):
     """
     Construct training, testing data, and kernels.
     :param: method: string, method used for computing kernels
     :param: replace: Boolean, whether or not replace the existing files in the repo
     :return:
-        - X_train: pd.DataFrame, training features
-        - X_val: pd.DataFrame, validation features
+        - X_train: pd.DataFrame, training sequences
+        - X_val: pd.DataFrame, validation sequences
         - y_train: pd.DataFrame, training labels
         - y_val: pd.DataFrame, validation labels
-        - X_test: pd.DataFrame, testing features
+        - X_test: pd.DataFrame, testing sequences
         - K: np.array, kernel
         - ID: np.array, Ids
     """
-    warnings.filterwarnings('ignore')
     file = 'training_data_'+method+'.pkl'
     if not all:
         X_train, y_train, X_val, y_val, X_test = train_test_split()
@@ -147,93 +156,6 @@ def get_training_datas(method, all=True, replace=False):
     return X_train, y_train, X_val, y_val, X_test, K, ID
 
 
-def select_k(k, X_train, y_train, X_val, y_val, X_test):
-    """
-    Restrict training and testing data to 1 data set of interest, defined by k (TF type)
-    :param k: int, which data set to restrict on
-    :param X_train: pd.DataFrame, training features
-    :param y_train: pd.DataFrame, training labels
-    :param X_val: pd.DataFrame, validation features
-    :param y_val: pd.DataFrame, validation labels
-    :param X_test: pd.DataFrame, testing features
-    :return: pd.DataFrames and kernel
-    """
-    idx_train = np.where(np.array(X_train.loc[:, 'k']) == k)[0]
-    idx_val = np.where(np.array(X_val.loc[:, 'k']) == k)[0]
-    idx_test = np.where(np.array(X_test.loc[:, 'k']) == k)[0]
-    X_train_, y_train_ = X_train.iloc[idx_train], y_train.iloc[idx_train]
-    X_val_, y_val_ = X_val.iloc[idx_val], y_val.iloc[idx_val]
-    X_test_ = X_test.iloc[idx_test]
-    return X_train_, y_train_, X_val_, y_val_, X_test_
-
-
-def export_predictions(algos, X_tests):
-    """
-    Compute and export predictions on test set (0 or 1)
-    :param algos: list, list of trained svms
-    :param X_tests: list, list of testing pd.DataFrames
-    :return: np.array, predictions
-    """
-    for k, alg in enumerate(algos):
-        X_test = X_tests[k]
-        pred_test = alg.predict(X_test).astype(int)
-        if k == 0:
-            y_test = pd.DataFrame({'Id': X_test.Id, 'Bound': pred_test})
-        else:
-            y_test = pd.concat((y_test, pd.DataFrame({'Id': X_test.Id, 'Bound': pred_test})))
-    y_test.Id = -y_test.Id - 1
-    y_test.Bound = y_test.Bound.replace(-1, 0)
-    t = datetime.datetime.now().time()
-    y_test.to_csv('y_test_' + str(t) + '.csv', index=False)
-    return y_test
-
-
-def sort_accuracies_k(algo='C_SVM', k=1):
-    """
-    Sort best accuracies obtained for each kernel methods (through cross validation) along with constants.
-    :param algo: string, 'C_SVM', 'KLR', 'KRR'
-    :param k: int, which data set to consider (default 1)
-    :return: pd.DataFrame with the following columns:
-            - Kernel method
-            - Accuracy on validation
-            - Parameters used
-    """
-    k_ = 'k'+str(k)
-    val_scores = {}
-    C_opts = {}
-    warnings.filterwarnings('ignore')
-    for file in os.listdir('./Data/CrossVals/'):
-        if algo in file and k_ in file and 'SVM_NLCK_p' not in file:
-            pred = pkl.load(open(os.path.join('./Data/CrossVals/', file), 'rb'))
-            file = file.split(k_)[0][5:-1]
-            val_scores[file] = np.max(pred[3])
-            C_opts[file] = pred[4]
-    sorted_val = sorted(val_scores.items(), key=operator.itemgetter(1), reverse=True)
-    sorted_C = {}
-    for i in range(len(sorted_val)):
-        key = sorted_val[i][0]
-        sorted_C[key] = C_opts[key]
-    u = sorted_val, sorted_C
-    p = pd.DataFrame({'Kernel Method - k='+str(k): [u[0][i][0] for i in range(len(u[0]))],
-                      'Val accuracy - k='+str(k): [u[0][i][1] for i in range(len(u[0]))],
-                      'Constant C - k='+str(k): [np.round(i, 4) for i in u[1].values()]})
-    return p
-
-
-def sort_accuracies(algo='C_SVM'):
-    """
-    Sort accuracies for the 3 data sets
-    :param algo: string, 'C_SVM' or 'SVM2'
-    :return: pd.DataFrame, methods+accuracies+Cs
-    """
-    for k_ in range(1, 4):
-        if k_ == 1:
-            p = sort_accuracies_k(algo, k_)
-        else:
-            p = pd.concat((p, sort_accuracies_k(algo, k_)), axis=1)
-    return p
-
-
 def load_kernel(method):
     """
     Load kernel
@@ -246,7 +168,7 @@ def load_kernel(method):
 
 def get_all_data(methods):
     """
-    Return all the necessary data for training and running the experiments.
+    Return all the necessary data for training and running the experiments, for each TF type.
     Specially designed for ALIGNF and NLCK algorithms.
     :param methods: list of strings, kernel methods
     :return: list:
@@ -274,15 +196,16 @@ def get_all_data(methods):
         kernels = kernels[0]
     return data, data1, data2, data3, kernels, ID
 
+#########################################Cross validation generic method################################################
 
-def cross_validation(Ps, data, algo, kfolds=5, pickleName='cv_C_SVM', **kwargs):
+
+def cross_validation(Ps, data, algo, kfolds=5, **kwargs):
     """
-    Cross-validation implementation for C_SVM
+    Cross-validation implementation for C_SVM, KLR or KRR
     :param Ps: list or np.array, list of constants to loop on
     :param data: list, X_train + y_train + X_val + y_val
     :param algo: string, choose between CSVM, KLR, KRR
     :param kfolds: int, number of folds used for CV
-    :param pickleName: string
     :param kwargs: arguments used for C_SVM (tol, etc...)
     :return: list: - p_opt: float, optimal constant (best average score)
                    - scores_tr: np.array, scores on train set for each constant C (and each fold)
@@ -327,15 +250,38 @@ def cross_validation(Ps, data, algo, kfolds=5, pickleName='cv_C_SVM', **kwargs):
     mean_scores_tr, mean_scores_te = np.mean(scores_tr, axis=0), np.mean(scores_te, axis=0)
     p_opt = Ps[np.argmax(mean_scores_te)]
     print('Best constant={}, val_acc={:0.4f}'.format(p_opt, np.max(mean_scores_te)))
-    pkl.dump([scores_tr, scores_te, mean_scores_tr, mean_scores_te, p_opt],
-             open(os.path.join('./Data/CrossVals/', pickleName), 'wb'))
     return p_opt, scores_tr, scores_te, mean_scores_tr, mean_scores_te
+
+###################################################Predictions##########################################################
+
+
+def export_predictions(algos, X_tests):
+    """
+    Compute and export predictions on test set (0 or 1)
+    :param algos: list, list of trained svms
+    :param X_tests: list, list of testing pd.DataFrames
+    :return: np.array, predictions
+    """
+    for k, alg in enumerate(algos):
+        X_test = X_tests[k]
+        pred_test = alg.predict(X_test).astype(int)
+        if k == 0:
+            y_test = pd.DataFrame({'Id': X_test.Id, 'Bound': pred_test})
+        else:
+            y_test = pd.concat((y_test, pd.DataFrame({'Id': X_test.Id, 'Bound': pred_test})))
+    y_test.Id = np.arange(1000 * len(algos))
+    y_test.Bound = y_test.Bound.replace(-1, 0)
+    t = datetime.datetime.now().time()
+    y_test.to_csv('y_test_' + str(t) + '.csv', index=False)
+    return y_test
+
+#################################################Other functions########################################################
 
 
 def reformat_data(data, kernels, ID):
     """
     Reformat data in order to make computations faster. Mostly useful for NLCK algorithm
-    where reformat_data allows to compute the final non-linear combination on the dataset of interest and not
+    where reformat_data allows to compute the final non-linear combination only on the dataset of interest and not
     the whole union of the 3. This function formats the IDs.
     :param data: list (X_train, y_train, X_val, y_val, X_test)
     :param kernels: list of kernels
@@ -365,3 +311,24 @@ def reformat_data(data, kernels, ID):
     y_val.Id = ID_[X_train.shape[0]:(X_train.shape[0] + X_val.shape[0])]
     return X_train, y_train, X_val, y_val, X_test, kernels_, ID_
 
+
+def trainInRepo(file):
+    """
+    Check if training data have already been stored in your repository
+    :param file: string, file name
+    :return Boolean
+    """
+    return file in os.listdir(path)
+
+
+def resetIndex(df):
+    """
+    Reset index of pd.dataFrames
+    :param df: list of pd.dataFrame
+    :return: list of pd.dataFrame
+    """
+    D = []
+    for d in df:
+        d.reset_index(drop=True, inplace=True)
+        D.append(d)
+    return D
