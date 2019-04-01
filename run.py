@@ -3,8 +3,7 @@ from NLCKernels import NLCK
 from SVM import C_SVM
 
 # Best submission : Non-Linear Combination of 10 kernels listed below:
-#methods = ['SP4', 'SP5', 'SP6', 'MM31', 'MM41', 'MM51', 'MM61', 'WD4', 'WD5', 'WD10']
-methods = ['MM_k2_m1', 'SP_k1']
+methods = ['SP_k4', 'SP_k5', 'SP_k6', 'MM_k4_m1', 'MM_k5_m1', 'MM_k6_m1', 'WD_d4', 'WD_d5', 'WD_d10']
 
 # Import data
 data, data1, data2, data3, kernels, ID = get_all_data(methods)

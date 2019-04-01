@@ -26,20 +26,20 @@ import pandas as pd
 
 build_kernel = False  # Build a kernel
 check_method = False  # Use a particular method
-check_alignf = False   # Use ALIGNF algorithm
+check_alignf = False  # Use ALIGNF algorithm
 check_NLCK   = False  # Use NLCK algorithm
-check_CVNLCK = True  # Use cross validation on NLCK hyperparameters
+check_CVNLCK = False  # Use cross validation on NLCK hyperparameters
 check_other  = False  # Free
 
 if __name__ == '__main__':
     if build_kernel:
-        methods = ['GP_k3_g1', 'MM51', 'WD10']
+        methods = ['GP_k3_g1', 'MM_k5_m1', 'WD_d10']
         for method in methods:
             X_train, y_train, X_val, y_val, X_test, K, ID = utils.get_training_datas(method=method, replace=True)
             # Put replace = False not to erase the previous saves
 
     elif check_method:
-        method = 'MM61'
+        method = 'MM_k6_m1'
         algo = 'CSVM'
         solver = 'CVX'
         data, data1, data2, data3, K, ID = utils.get_all_data([method])
@@ -48,7 +48,7 @@ if __name__ == '__main__':
         utils.cross_validation(Ps=Cs, data=data1, algo=algo, solver=solver, kfolds=3, K=K, ID=ID)
 
     elif check_alignf:
-        methods = ['MM31', 'WD5', 'SS_l1_k3']
+        methods = ['MM_k3_m1', 'WD_d5', 'SS_l1_k3']
         data, data1, data2, data3, kernels, ID = ALIGNF.aligned_kernels(methods)
         K = kernels[0]  # 0 index for first data set
         X_train_1, y_train_1, X_val_1, y_val_1, X_test_1, K_1, ID_1 = utils.reformat_data(data1, [K], ID)
@@ -56,7 +56,7 @@ if __name__ == '__main__':
         utils.cross_validation(Ps=Cs, data=data1, algo='CSVM', kfolds=5, K=K_1[0], ID=ID_1)
 
     elif check_NLCK:
-        methods = ['SP6', 'SP5', 'SP4']
+        methods = ['SP_k6', 'SP_k5', 'SP_k4']
         data, data1, data2, data3, kernels, ID = utils.get_all_data(methods)
         X_train_1, y_train_1, X_val_1, y_val_1, X_test_1, kernels_1, ID_1 = utils.reformat_data(data1, kernels, ID)
         Km1 = NLCKernels.NLCK(X_train_1, y_train_1, ID_1, kernels_1, C=1e-2, eps=1e-9, degree=2).get_K()
@@ -64,7 +64,7 @@ if __name__ == '__main__':
         utils.cross_validation(Ps=Cs, data=data1, algo='CSVM', kfolds=5, K=Km1, ID=ID_1)
 
     elif check_CVNLCK:
-        methods = ['MM31', 'WD5', 'SS_l1_k3']
+        methods = ['MM_k3_m1', 'WD_k5', 'SS_l1_k3']
         Cs_NLK = [1e-3, 1e-2, 0.1, 1, 10, 100]
         Cs_SVM = np.concatenate((np.linspace(0.01, 0.1, 19), np.linspace(0.1, 1, 91), np.linspace(1, 10, 19)))
         degrees = [1]

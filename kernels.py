@@ -481,6 +481,7 @@ def select_method(X, method):
         k = int(m[1][1:])
         K = get_spectrum_K(X, k)
     elif method[:2] == 'WD' and method[2] != 'S':
+        print(m)
         d = int(m[1][1:])
         K = get_WD_K(X, d)
     elif method[:2] == 'MM':
